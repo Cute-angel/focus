@@ -9,6 +9,18 @@ const routes = [
     path: "/settings",
     component: () => import("./pages/SettingPage.vue"),
   },
+  {
+    path: "/spotlight",
+    component: () => import("./components/SpotlightWindow.vue"),
+  },
+  {
+    path: "/query",
+    component: () => import("./pages/HomePage.vue"),
+  },
+  {
+    path: "/",
+    component: () => import("./pages/QueryPage.vue"),
+  },
 ];
 
 const router: Router = createRouter({

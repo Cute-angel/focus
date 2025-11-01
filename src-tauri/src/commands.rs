@@ -5,6 +5,8 @@ use tauri::Runtime;
 use std::{ sync::LazyLock};
 
 use everything_rs::{Everything, EverythingRequestFlags, EverythingSort, EverythingError};
+use crate::api::extension;
+use crate::api::extension::Results;
 
 static EverythingInstance: LazyLock<Everything> = LazyLock::new(Everything::new);
 
@@ -16,9 +18,6 @@ pub enum PluginResult {
     cal(Number)
 }
 
-fn sum<T :std::ops::Add<Output = T>> (a:T,b:T) -> T{
-    a + b
-}
 
 pub fn get_file_finder_result(text_input:String) -> Result<(usize,Vec<PluginResult>),Error> {
     let everything = &*EverythingInstance;
@@ -76,19 +75,15 @@ impl serde::Serialize for Error {
 
 
 #[tauri::command]
-pub fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+pub async  fn query<R: Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>,input_text:String) -> Result<Results, String> {
+  let mut a = Results{
+      total_count:1,
+      items:Vec::new(),
+  };
+  Ok(a)
 }
 
-
 #[tauri::command]
-pub fn set_text(text: &str) -> Result<String, Error> {
-    println!("text: {}", text);
-    Ok(String::from(text))
-}
-
-
-#[tauri::command]
-async fn command_name<R: Runtime>(max_result:usize,text: &str, app: tauri::AppHandle<R>, window: tauri::Window<R>) -> Result<Vec<PluginResult>, Error> {
-    todo!()
+pub fn run_action(id:String) {
+  println!("{id}")
 }

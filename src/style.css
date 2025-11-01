@@ -1,2 +1,12 @@
 @import "tailwindcss";
 @plugin "daisyui";
+@plugin "daisyui/theme" {
+}
+
+#app {
+  --bg-color: rgba(red, green, blue, 0);
+}
+
+:root {
+  background-color: var(--bg-color);
+}
