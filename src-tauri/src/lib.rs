@@ -6,6 +6,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
 use crate::api::command_tree::CommandDispatcher;
 use crate::api::extension::Extension;
+use crate::extension::cal_plugin::Calculator;
 use crate::extension::demo_plugin::DemoExtension;
 mod api;
 mod commands;
@@ -44,8 +45,19 @@ pub fn run() {
 
             // command_dispatcher
             let mut command_dispatcher = CommandDispatcher::new("/");
-            let demo =  DemoExtension::default();
+            let demo   =  DemoExtension::default();
+            let cal = Calculator::default();
+
+            // let plugin_list: Vec<Box<dyn Extension>> = vec![
+            //     Box::new(demo) as Box<dyn Extension>,  // 显式地转换为 Box<dyn Extension>
+            //     Box::new(cal) as Box<dyn Extension>,
+            // ];
+            //
+            // for i in &plugin_list{
+            //     i.OnMount(&mut command_dispatcher);
+            // }
             demo.OnMount(&mut command_dispatcher);
+            cal.OnMount(&mut command_dispatcher);
 
             app.manage(Mutex::new(command_dispatcher));
 

@@ -3,7 +3,7 @@
         <query-box class="w-full box-border sticky top-0 z-10 shadow-lg" v-model:cursorPos="cursorPos"
             v-model:query="inputText"></query-box>
 
-        <div class="mt-2 overflow-y-auto max-h-[300px] ">
+        <div class="mt-2 overflow-y-auto max-h-[300px] " v-show="hasResults">
             <ul class="flex flex-col box-border" ref="scrollContainer">
                 <li class=" w-full flex-1 " v-for="(result, index) in results">
                     <ResultItem :key="index" :icon="result.icon" :title="result.title" :description="result.description"
@@ -49,6 +49,10 @@ const isAtEnd: ComputedRef<boolean> = computed(() => {
     } else {
         return false;
     }
+})
+
+const hasResults: ComputedRef<boolean> = computed(() => {
+    return results.value.length > 0;
 })
 
 const appWindow = getCurrentWindow();
@@ -130,8 +134,10 @@ onMounted(() => {
 watch(inputText, () => {
     selectedAction.value = -1;
 
-    invoke("query", { inputText: inputText.value }).then((res) => {
-        console.log(res)
+    invoke("query", { inputText: inputText.value }).then((res: any) => {
+        console.log(res);
+        results.value = res.items as Array<Result>;
+        selectedIndex.value = results.value.length > 0 ? 0 : -1;
     })
 
 })
@@ -143,7 +149,9 @@ const svg = shallowRef(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" view
                 </svg>`)
 
 
-const results = ref<Array<Result>>([
+const results = ref<Array<Result>>([]);
+
+const _results = ref<Array<Result>>([
     {
         icon: 'document-icon',
         title: 'Result Title 1 j q l',

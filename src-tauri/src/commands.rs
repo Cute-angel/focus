@@ -91,8 +91,10 @@ pub async fn query<R: Runtime>(
     let mut dispatcher = dispatcher.lock().await;
     if let Some((func, ctx)) = dispatcher.run(input_text){
         let a = func(ctx);
+        println!("1");
         match a.downcast_ref::<ExtensionResult>() {
             Some(a)=>{
+
                 Ok(Results {
                     total_count: 1,
                     items: vec![a.clone()],

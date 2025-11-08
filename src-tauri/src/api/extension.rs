@@ -4,9 +4,9 @@ use crate::api::command_tree::{CommandDispatcher, CommandNode};
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct action {
-    icon: String,
-    tooltip: String,
-    value: String,
+    pub(crate) icon: String,
+    pub(crate) tooltip: String,
+    pub(crate) value: String,
 }
 
 #[derive(serde::Serialize, Debug)]
@@ -56,5 +56,6 @@ impl extension_info {
 
 pub trait Extension {
     fn OnMount<>(&self, command_dispatcher: &mut CommandDispatcher);
-    fn OnUnload<F: Fn()>(func: F);
+
+    fn OnUnmount<>(&self, command_dispatcher: &mut CommandDispatcher);
 }
