@@ -15,12 +15,15 @@
         "label": "main",
         "title": "focus",
         "width": 800,
-        "height": 600,
+        "height": 380,
         "transparent": true,
         "windowEffects": {
           "effects": ["acrylic"],
           "color": [255, 255, 255, 64]
-        }
+        },
+        "decorations": false,
+        "resizable": false,
+        "center": true
       }
     ],
     "security": {

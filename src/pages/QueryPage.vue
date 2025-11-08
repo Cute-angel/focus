@@ -1,14 +1,14 @@
 <template>
-    <div @keydown="handleKeydown" tabindex="0" class="focus-visible:outline-none">
+    <div @keydown="handleKeydown" tabindex="0" class="focus-visible:outline-none" ref="mainPage">
         <query-box class="w-full box-border sticky top-0 z-10 shadow-lg" v-model:cursorPos="cursorPos"
             v-model:query="inputText"></query-box>
 
-        <div class="mt-2 overflow-y-auto h-[300px] ">
+        <div class="mt-2 overflow-y-auto max-h-[300px] ">
             <ul class="flex flex-col box-border" ref="scrollContainer">
                 <li class=" w-full flex-1 " v-for="(result, index) in results">
                     <ResultItem :key="index" :icon="result.icon" :title="result.title" :description="result.description"
                         :actions="result.actions" :is-select="selectedIndex === index" :selected-action="selectedAction"
-                        class=" mx-4 mb-2 " />
+                        class=" mx-4 mb-2 mt-1" />
                 </li>
             </ul>
         </div>
@@ -21,9 +21,12 @@
 import QueryBox from '../components/QueryBox.vue';
 import ResultItem from '../components/ResultItem.vue';
 
-import { computed, ComputedRef, ref, shallowRef } from 'vue';
+import { computed, ComputedRef, onMounted, ref, shallowRef, watch } from 'vue';
 import { type Action } from '../components/ActionsBox.vue';
 import { useRunAction } from '../api';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { LogicalSize } from '@tauri-apps/api/dpi';
+import { invoke } from '@tauri-apps/api/core';
 
 interface Result {
     icon: string;
@@ -37,6 +40,7 @@ const selectedAction = ref(-1);
 const scrollContainer = ref<HTMLElement | null>(null);
 const cursorPos = ref<Number>();
 const inputText = ref<String>("");
+const mainPage = ref<HTMLElement | null>(null);
 
 
 const isAtEnd: ComputedRef<boolean> = computed(() => {
@@ -47,6 +51,7 @@ const isAtEnd: ComputedRef<boolean> = computed(() => {
     }
 })
 
+const appWindow = getCurrentWindow();
 
 // Handle keyboard events (up/down arrows)
 const handleKeydown = (event: KeyboardEvent) => {
@@ -98,7 +103,6 @@ const handleKeydown = (event: KeyboardEvent) => {
 
     }
     else if (event.key === 'ArrowRight') {
-        console.log(cursorPos.value, inputText.value.length)
         if (selectedAction.value < results.value[selectedIndex.value].actions.length - 1 && isAtEnd.value) {
             selectedAction.value++;
         }
@@ -106,6 +110,31 @@ const handleKeydown = (event: KeyboardEvent) => {
     }
 };
 
+
+const autoResizeWithObserver = (el: HTMLElement) => {
+    const observer = new ResizeObserver(async () => {
+        const reac = el.getBoundingClientRect()
+        await appWindow.setSize(new LogicalSize(
+            Math.ceil(reac.width),
+            Math.ceil(reac.height)
+        ))
+    })
+
+    observer.observe(el)
+}
+
+onMounted(() => {
+    if (mainPage.value) autoResizeWithObserver(mainPage.value)
+})
+
+watch(inputText, () => {
+    selectedAction.value = -1;
+
+    invoke("query", { inputText: inputText.value }).then((res) => {
+        console.log(res)
+    })
+
+})
 
 const svg = shallowRef(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
                    stroke="currentColor" class="size-[1.2em]">
@@ -172,54 +201,7 @@ const results = ref<Array<Result>>([
 
     },
 
-    {
-        icon: 'document-icon',
-        title: 'Result Title 1 j q l',
-        description: 'This is a description for result 1. test long long long long long long long long long text',
-        actions: [{
-            id: "open",
-            tooltip: "open file",
-            icon: svg.value
-        },
-        {
-            id: "open",
-            tooltip: "open file",
-            icon: svg.value
-        }]
 
-    },
-    {
-        icon: 'document-icon',
-        title: 'Result Title 1 j q l',
-        description: 'This is a description for result 1. test long long long long long long long long long text',
-        actions: [{
-            id: "open",
-            tooltip: "open file",
-            icon: svg.value
-        },
-        {
-            id: "open",
-            tooltip: "open file",
-            icon: svg.value
-        }]
-
-    },
-    {
-        icon: 'document-icon',
-        title: 'Result Title 1 j q l',
-        description: 'This is a description for result 1. test long long long long long long long long long text',
-        actions: [{
-            id: "open",
-            tooltip: "open file",
-            icon: svg.value
-        },
-        {
-            id: "open",
-            tooltip: "open file",
-            icon: svg.value
-        }]
-
-    },
 
 
 

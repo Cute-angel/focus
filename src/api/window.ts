@@ -5,7 +5,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export async function build_windows(
   label: string,
-  path: string,
+
   windowOptions: WebviewOptions
 ) {
   const appwindow: Window = new Window(label, {});
