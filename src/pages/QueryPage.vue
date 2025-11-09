@@ -27,6 +27,8 @@ import { useRunAction } from '../api';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { LogicalSize } from '@tauri-apps/api/dpi';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWebviewWindow, WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { TauriEvent } from '@tauri-apps/api/event';
 
 interface Result {
     icon: string;
@@ -62,7 +64,8 @@ const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter') {
         if (selectedIndex.value != -1) {
             const _lt: Array<Action> = results.value[selectedIndex.value].actions;
-            useRunAction(_lt[selectedAction.value === -1 ? 0 : selectedAction.value].id);
+            useRunAction(_lt[selectedAction.value === -1 ? 0 : selectedAction.value].id,
+                _lt[selectedAction.value === -1 ? 0 : selectedAction.value].value);
         }
     }
 
@@ -129,6 +132,13 @@ const autoResizeWithObserver = (el: HTMLElement) => {
 
 onMounted(() => {
     if (mainPage.value) autoResizeWithObserver(mainPage.value)
+
+
+    const webviewwindow: WebviewWindow = getCurrentWebviewWindow();
+    webviewwindow.listen(TauriEvent.WINDOW_BLUR, () => {
+        console.log("hide spotlight window");
+        webviewwindow.hide();
+    })
 })
 
 watch(inputText, () => {
@@ -137,7 +147,7 @@ watch(inputText, () => {
     invoke("query", { inputText: inputText.value }).then((res: any) => {
         console.log(res);
         results.value = res.items as Array<Result>;
-        selectedIndex.value = results.value.length > 0 ? 0 : -1;
+        selectedIndex.value = results.value.length > 0 ? -1 : -1;
     })
 
 })
@@ -151,69 +161,10 @@ const svg = shallowRef(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" view
 
 const results = ref<Array<Result>>([]);
 
-const _results = ref<Array<Result>>([
-    {
-        icon: 'document-icon',
-        title: 'Result Title 1 j q l',
-        description: 'This is a description for result 1.',
-        actions: [{
-            id: "open 1",
-            tooltip: "open 1",
-            icon: svg.value
-        },
-        {
-            id: "open 2",
-            tooltip: "open 2",
-            icon: svg.value
-        }, {
-            id: "open 3",
-            tooltip: "open 3",
-            icon: svg.value
-        }, {
-            id: "open 4",
-            tooltip: "open 4",
-            icon: svg.value
-        }]
-
-    },
-    {
-        icon: 'document-icon',
-        title: 'Result Title 1 j q l',
-        description: 'This is a description for result 1. test long long long long long long long long long text',
-        actions: [{
-            id: "open 3",
-            tooltip: "open file 3",
-            icon: svg.value
-        },
-        {
-            id: "open 4",
-            tooltip: "open file 4",
-            icon: svg.value
-        }]
-
-    },
-    {
-        icon: 'document-icon',
-        title: 'Result Title 1 j q l',
-        description: 'This is a description for result 1. test long long long long long long long long long text',
-        actions: [{
-            id: "open",
-            tooltip: "open file",
-            icon: svg.value
-        },
-        {
-            id: "open",
-            tooltip: "open file",
-            icon: svg.value
-        }]
-
-    },
 
 
 
 
-
-]);
 
 </script>
 

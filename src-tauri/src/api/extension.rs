@@ -1,16 +1,15 @@
-
-use serde::Serialize;
 use crate::api::command_tree::{CommandDispatcher, CommandNode};
+use serde::Serialize;
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct action {
     pub(crate) icon: String,
     pub(crate) tooltip: String,
     pub(crate) value: String,
+    pub(crate) id:String,
 }
 
-#[derive(serde::Serialize, Debug)]
-#[derive(Clone)]
+#[derive(serde::Serialize, Debug, Clone)]
 pub struct ExtensionResult {
     pub(crate) icon: String,
     pub(crate) title: String,
@@ -31,15 +30,15 @@ pub struct extension_info {
 }
 
 impl extension_info {
-    pub fn default(id:&str) -> Self {
+    pub fn default(id: &str) -> Self {
         Self {
-            id:id.to_string(),
+            id: id.to_string(),
             commands: vec![],
             priority: 100,
         }
     }
 
-    pub fn add_command(mut self, command: CommandNode) ->  Self {
+    pub fn add_command(mut self, command: CommandNode) -> Self {
         self.commands.push(command);
         self
     }
@@ -55,7 +54,7 @@ impl extension_info {
 }
 
 pub trait Extension {
-    fn OnMount<>(&self, command_dispatcher: &mut CommandDispatcher);
+    fn OnMount(&self, command_dispatcher: &mut CommandDispatcher);
 
-    fn OnUnmount<>(&self, command_dispatcher: &mut CommandDispatcher);
+    fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher);
 }

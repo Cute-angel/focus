@@ -1,11 +1,9 @@
 use std::any::Any;
 use std::collections::HashMap;
 
-
 pub trait Parameter {
-    fn parse(&self,_: &str) -> Result<String, String>;
+    fn parse(&self, _: &str) -> Result<String, String>;
 }
-
 
 pub enum NodeType {
     Literal,
@@ -15,14 +13,12 @@ pub enum NodeType {
 pub struct StringArgument;
 
 impl Parameter for StringArgument {
-    fn parse(&self,input:&str) -> Result<String, String> {
+    fn parse(&self, input: &str) -> Result<String, String> {
         Ok(input.to_string())
     }
 }
 
 pub struct CommandNode {
-
-
     pub name: String,
     pub child: HashMap<String, CommandNode>,
     pub execute: Option<Box<dyn Fn(CommandContext) -> Box<dyn Any> + Send>>,
@@ -32,19 +28,25 @@ pub struct CommandNode {
 
 impl Default for CommandNode {
     fn default() -> Self {
-        Self { name:"default".to_string(), child:HashMap::new(), execute: None, node_type: NodeType::Literal, truncation: false }
+        Self {
+            name: "default".to_string(),
+            child: HashMap::new(),
+            execute: None,
+            node_type: NodeType::Literal,
+            truncation: false,
+        }
     }
 }
 
 impl CommandNode {
     pub fn new(name: &str) -> Self {
         Self {
-            name:name.to_string(),
+            name: name.to_string(),
             child: HashMap::new(),
             execute: None,
             truncation: false,
             // when argument set to None the
-            node_type:NodeType::Literal,
+            node_type: NodeType::Literal,
         }
     }
 
@@ -109,7 +111,13 @@ impl CommandDispatcher {
         self.root.child.insert(child.name.clone(), child);
     }
 
-    pub fn run(&mut self, input: String) -> Option<(&Box<dyn Fn(CommandContext) -> Box<(dyn Any + 'static)> + Send>, CommandContext)>  {
+    pub fn run(
+        &mut self,
+        input: String,
+    ) -> Option<(
+        &Box<dyn Fn(CommandContext) -> Box<(dyn Any + 'static)> + Send>,
+        CommandContext,
+    )> {
         let command_content;
         // cut the prefix and match if the input start with prefix
         if let Some(input) = input.strip_prefix(&self.root.name) {
@@ -119,7 +127,10 @@ impl CommandDispatcher {
         }
 
         let mut ctx = CommandContext::default();
-        let part = command_content.trim().split_whitespace().collect::<Vec<&str>>();
+        let part = command_content
+            .trim()
+            .split_whitespace()
+            .collect::<Vec<&str>>();
 
         let mut current_node = &self.root;
 
@@ -137,16 +148,16 @@ impl CommandDispatcher {
             }
             // try to match Parameter
             let mut matched = false;
-            for i in current_node.child.values(){
-                if let NodeType::Parameter(ref arg_type ) = &i.node_type {
-                    if current_node.truncation{
+            for i in current_node.child.values() {
+                if let NodeType::Parameter(ref arg_type) = &i.node_type {
+                    if current_node.truncation {
                         current_node = i;
                         matched = true;
                         break;
                     }
 
                     if let Some(arg) = arg_type {
-                        match arg.parse(*part){
+                        match arg.parse(*part) {
                             Ok(value) => {
                                 ctx.add_parm(i.name.as_ref(), Box::new(value));
                                 matched = true;
@@ -175,42 +186,41 @@ impl CommandDispatcher {
                 break;
             }
             ctx.ctx.push(part.trim().to_string());
-
         }
-
 
         if let Some(func) = &current_node.execute {
-            Some(( func ,ctx))
-        }else{
+            Some((func, ctx))
+        } else {
             None
         }
-
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::api::command_tree::{CommandContext, CommandDispatcher, CommandNode, NodeType, StringArgument};
+    use crate::api::command_tree::{
+        CommandContext, CommandDispatcher, CommandNode, NodeType, StringArgument,
+    };
     use std::any::Any;
 
     #[test]
     fn test_command_node() {
-        let cmd =
-            CommandNode::new("test").then(
-                CommandNode::new("args",).then(
-                CommandNode::new("arg1").argument(StringArgument).execute(|f|
-                    {
-                    assert_eq!(f.get_parm("arg1"),Some(&Box::new(String::from("123"))));
-                    assert_eq!(f.get_parm("args"),None );
+        let cmd = CommandNode::new("test").then(
+            CommandNode::new("args").then(
+                CommandNode::new("arg1")
+                    .argument(StringArgument)
+                    .execute(|f| {
+                        assert_eq!(f.get_parm("arg1"), Some(&Box::new(String::from("123"))));
+                        assert_eq!(f.get_parm("args"), None);
 
-
-                    Box::new(()) as Box<dyn Any>
+                        Box::new(()) as Box<dyn Any>
                     }),
-            ));
+            ),
+        );
         let mut command_dispatcher = CommandDispatcher::new("/");
         command_dispatcher.register(cmd);
 
-        if  let Some((func,ctx))  = command_dispatcher.run("/test        args 123".to_string()){
+        if let Some((func, ctx)) = command_dispatcher.run("/test        args 123".to_string()) {
             func(ctx);
         }
     }
@@ -218,7 +228,10 @@ mod tests {
     #[test]
     fn test_truncation() {
         let func = |f: CommandContext| {
-            assert_eq!(f.get_parm("arg1"),Some(&Box::new("first arg1 arg2".to_string())));
+            assert_eq!(
+                f.get_parm("arg1"),
+                Some(&Box::new("first arg1 arg2".to_string()))
+            );
             return Box::new(1) as Box<dyn Any>;
         };
 
@@ -231,10 +244,15 @@ mod tests {
         let mut command_dispatcher = CommandDispatcher::new("/");
         command_dispatcher.register(cmd);
 
-        if  let Some((func,ctx))  = command_dispatcher.run("/test            first arg1 arg2".to_string()){
-            assert!(ctx.get_parm("arg1").is_none() );
-            assert!(ctx.get_parm("arg2").is_none() );
-            assert_eq!(ctx.get_parm("first") , Some(&Box::new("first arg1 arg2".to_string())));
+        if let Some((func, ctx)) =
+            command_dispatcher.run("/test            first arg1 arg2".to_string())
+        {
+            assert!(ctx.get_parm("arg1").is_none());
+            assert!(ctx.get_parm("arg2").is_none());
+            assert_eq!(
+                ctx.get_parm("first"),
+                Some(&Box::new("first arg1 arg2".to_string()))
+            );
             println!("{}", ctx.get_parm("first").unwrap());
         }
     }

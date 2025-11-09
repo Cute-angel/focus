@@ -5,7 +5,7 @@
                 :key="reserve_list.length - 1 - index"
                 :class="reserve_list.length - 1 - index === SelectAction ? 'tooltip-open' : ''">
                 <button class="btn btn-square btn-outline mx-3 box-border outline-none border-none hover:border-2"
-                    @click="useRunAction(action.id)"
+                    @click="useRunAction(action.id, action.value)"
                     :class="reserve_list.length - 1 - index === SelectAction ? 'btn-active' : ''">
                     <div v-html="action.icon" class="inline-block"></div>
                 </button>
@@ -16,13 +16,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useRunAction } from '../api'
 
 interface Action {
     id: String,
     tooltip: String,
     icon: String,
+    value: String
 
 }
 

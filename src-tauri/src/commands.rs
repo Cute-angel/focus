@@ -1,18 +1,21 @@
+use std::env::var;
+use std::process::id;
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use serde::Serialize;
 use serde_json::Number;
 use std::sync::LazyLock;
 use std::vec;
-use tauri::{Runtime, State};
+use tauri::{AppHandle, Runtime, State};
 
-use crate::api::extension;
-use crate::api::extension::{ExtensionResult, Results};
+use crate::api::command_tree::CommandDispatcher;
+use crate::api::{action_runner, extension};
+use crate::api::extension::{action, ExtensionResult, Results};
+use crate::commands::PluginResult::Program;
 use everything_rs::{Everything, EverythingError, EverythingRequestFlags, EverythingSort};
 use tauri::async_runtime::Mutex;
-use crate::api::command_tree::CommandDispatcher;
-use crate::commands::PluginResult::Program;
+use crate::api::action_runner::ActionRunner;
 
-static EverythingInstance: LazyLock<Everything> = LazyLock::new(Everything::new);
+static EVERYTHING_INSTANCE: LazyLock<Everything> = LazyLock::new(Everything::new);
 
 #[derive(Serialize)]
 #[serde(tag = "type", content = "data")]
@@ -30,7 +33,7 @@ pub enum PluginResult {
 }
 
 pub fn get_file_finder_result(text_input: String) -> Result<(usize, Vec<PluginResult>), Error> {
-    let everything = &*EverythingInstance;
+    let everything = &*EVERYTHING_INSTANCE;
     everything.set_max_results(5);
 
     everything.set_request_flags(
@@ -85,38 +88,43 @@ pub async fn query<R: Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
     input_text: String,
-    dispatcher: State<'_,Mutex<CommandDispatcher>>
+    dispatcher: State<'_, Mutex<CommandDispatcher>>,
 ) -> Result<Results, String> {
 
+
+
     let mut dispatcher = dispatcher.lock().await;
-    if let Some((func, ctx)) = dispatcher.run(input_text){
+    if let Some((func, ctx)) = dispatcher.run(input_text) {
         let a = func(ctx);
         println!("1");
         match a.downcast_ref::<ExtensionResult>() {
-            Some(a)=>{
-
-                Ok(Results {
-                    total_count: 1,
-                    items: vec![a.clone()],
-                })
-            }
-            None=>{
-                Ok(Results {
-                    total_count:0,
-                    items:Vec::new()
-                })
-            }
+            Some(a) => Ok(Results {
+                total_count: 1,
+                items: vec![a.clone()],
+            }),
+            None => Ok(Results {
+                total_count: 0,
+                items: Vec::new(),
+            }),
         }
-    }else{
+    } else {
         Ok(Results {
-            total_count:0,
-            items:Vec::new()
+            total_count: 0,
+            items: Vec::new(),
         })
     }
+}
+
+#[tauri::command]
+pub fn run_action(id: String, val:String, app:AppHandle ) {
+    println!("{id}");
+    let action_runner = ActionRunner ::get_instance();
+    if let Some(action)=  action_runner.lock().unwrap().get(id.as_ref()){
+        action(val,app);
+    }
+
 
 }
 
 #[tauri::command]
-pub fn run_action(id: String) {
-    println!("{id}")
-}
+fn setup_focus_listener(window: tauri::Window) {}

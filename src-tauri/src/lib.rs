@@ -1,20 +1,22 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
-use tauri::async_runtime::Mutex;
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::TrayIconBuilder;
-use tauri::Manager;
 use crate::api::command_tree::CommandDispatcher;
 use crate::api::extension::Extension;
 use crate::extension::cal_plugin::Calculator;
 use crate::extension::demo_plugin::DemoExtension;
+use tauri::async_runtime::Mutex;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
+use tauri::Manager;
 mod api;
 mod commands;
 mod extension;
 
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -43,9 +45,15 @@ pub fn run() {
                 .icon(app.default_window_icon().unwrap().clone())
                 .build(app)?;
 
+            // register global short
+            #[cfg(desktop)]
+            {
+                api::register_globals_shortcut(app)?;
+            }
+
             // command_dispatcher
             let mut command_dispatcher = CommandDispatcher::new("/");
-            let demo   =  DemoExtension::default();
+            let demo = DemoExtension::default();
             let cal = Calculator::default();
 
             // let plugin_list: Vec<Box<dyn Extension>> = vec![

@@ -1,9 +1,13 @@
-use std::any::Any;
-use std::collections::HashMap;
-use std::string::ParseError;
+use crate::api::action_runner::ActionRunner;
 use crate::api::command_tree::{CommandDispatcher, CommandNode, StringArgument};
 use crate::api::extension::{action, Extension, ExtensionResult};
-use crate::extension::cal_plugin::CalculatorError::{DivisionByZeroError, FormatError, LessOperatorError, OperatorLocationError, ParenCloseError, Unknown};
+use crate::extension::cal_plugin::CalculatorError::{
+    DivisionByZeroError, FormatError, LessOperatorError, OperatorLocationError, ParenCloseError,
+    Unknown,
+};
+use std::any::Any;
+use tauri::AppHandle;
+use tauri_plugin_clipboard_manager::ClipboardExt;
 
 #[derive(Debug, Clone)]
 enum Token {
@@ -13,8 +17,8 @@ enum Token {
     RParen,
 }
 
-#[derive(Debug,thiserror::Error)]
-pub enum CalculatorError{
+#[derive(Debug, thiserror::Error)]
+pub enum CalculatorError {
     #[error("Number parse error")]
     FormatError,
     #[error("Unknown character {0}")]
@@ -26,8 +30,7 @@ pub enum CalculatorError{
     #[error("operator location error")]
     OperatorLocationError,
     #[error("{0} cannot be divided by zero")]
-    DivisionByZeroError(f64)
-
+    DivisionByZeroError(f64),
 }
 
 fn tokenize(expr: &str) -> Result<Vec<Token>, CalculatorError> {
@@ -46,7 +49,10 @@ fn tokenize(expr: &str) -> Result<Vec<Token>, CalculatorError> {
                 // 区分负号与减号
                 if num_buf.is_empty() {
                     // 检查是否是负号（前面没有数字或右括号）
-                    let prev_is_num = tokens.last().map(|t| matches!(t, Token::Number(_)|Token::RParen)).unwrap_or(false);
+                    let prev_is_num = tokens
+                        .last()
+                        .map(|t| matches!(t, Token::Number(_) | Token::RParen))
+                        .unwrap_or(false);
                     if !prev_is_num {
                         num_buf.push(c);
                         chars.next();
@@ -54,7 +60,9 @@ fn tokenize(expr: &str) -> Result<Vec<Token>, CalculatorError> {
                     }
                 }
                 if !num_buf.is_empty() {
-                    tokens.push(Token::Number(num_buf.parse::<f64>().map_err(|_| FormatError)?));
+                    tokens.push(Token::Number(
+                        num_buf.parse::<f64>().map_err(|_| FormatError)?,
+                    ));
                     num_buf.clear();
                 }
                 tokens.push(Token::Operator(c));
@@ -62,7 +70,9 @@ fn tokenize(expr: &str) -> Result<Vec<Token>, CalculatorError> {
             }
             '*' | '/' | '^' => {
                 if !num_buf.is_empty() {
-                    tokens.push(Token::Number(num_buf.parse::<f64>().map_err(|_| FormatError)?));
+                    tokens.push(Token::Number(
+                        num_buf.parse::<f64>().map_err(|_| FormatError)?,
+                    ));
                     num_buf.clear();
                 }
                 tokens.push(Token::Operator(c));
@@ -70,7 +80,9 @@ fn tokenize(expr: &str) -> Result<Vec<Token>, CalculatorError> {
             }
             '(' => {
                 if !num_buf.is_empty() {
-                    tokens.push(Token::Number(num_buf.parse::<f64>().map_err(|_| FormatError)?));
+                    tokens.push(Token::Number(
+                        num_buf.parse::<f64>().map_err(|_| FormatError)?,
+                    ));
                     num_buf.clear();
                 }
                 tokens.push(Token::LParen);
@@ -78,7 +90,9 @@ fn tokenize(expr: &str) -> Result<Vec<Token>, CalculatorError> {
             }
             ')' => {
                 if !num_buf.is_empty() {
-                    tokens.push(Token::Number(num_buf.parse::<f64>().map_err(|_| FormatError)?));
+                    tokens.push(Token::Number(
+                        num_buf.parse::<f64>().map_err(|_| FormatError)?,
+                    ));
                     num_buf.clear();
                 }
                 tokens.push(Token::RParen);
@@ -86,7 +100,9 @@ fn tokenize(expr: &str) -> Result<Vec<Token>, CalculatorError> {
             }
             ' ' => {
                 if !num_buf.is_empty() {
-                    tokens.push(Token::Number(num_buf.parse::<f64>().map_err(|_| FormatError)?));
+                    tokens.push(Token::Number(
+                        num_buf.parse::<f64>().map_err(|_| FormatError)?,
+                    ));
                     num_buf.clear();
                 }
                 chars.next();
@@ -96,7 +112,9 @@ fn tokenize(expr: &str) -> Result<Vec<Token>, CalculatorError> {
     }
 
     if !num_buf.is_empty() {
-        tokens.push(Token::Number(num_buf.parse::<f64>().map_err(|_| FormatError)?));
+        tokens.push(Token::Number(
+            num_buf.parse::<f64>().map_err(|_| FormatError)?,
+        ));
     }
 
     Ok(tokens)
@@ -121,7 +139,7 @@ fn check_syntax(tokens: &[Token]) -> Result<(), CalculatorError> {
             }
             Token::Operator(_) => {
                 if prev_was_op {
-                    return Err( LessOperatorError);
+                    return Err(LessOperatorError);
                 }
                 prev_was_op = true;
             }
@@ -226,7 +244,6 @@ fn eval_rpn(rpn: &[Token]) -> Result<f64, CalculatorError> {
 }
 
 pub fn evaluate_expression(expr: &str) -> Result<f64, CalculatorError> {
-
     let tokens = tokenize(expr)?;
     check_syntax(&tokens)?;
     let rpn = to_rpn(&tokens);
@@ -235,57 +252,61 @@ pub fn evaluate_expression(expr: &str) -> Result<f64, CalculatorError> {
 #[derive(Default)]
 pub(crate) struct Calculator;
 
-
-
 impl Extension for Calculator {
-    fn OnMount<>(&self, command_dispatcher: &mut CommandDispatcher) {
+    fn OnMount(&self, command_dispatcher: &mut CommandDispatcher) {
         let chipboard_svg = r#"<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
             </svg>
             "#;
 
-        let cmd = CommandNode::new("cal")
-            .then(
-                CommandNode::new("cal_expression")
-                    .set_truncate()
-                    .argument(StringArgument)
-                    .execute(|ctx|{
-                        if let Some(exp) = ctx.get_parm("cal_expression"){
-                            match evaluate_expression(exp) {
-                                Ok(val)=>{
-                                    println!("{}", val);
-                                    let res =  ExtensionResult{
-                                        icon:"a".to_string(),
-                                        title:val.to_string(),
-                                        description:"Press Enter to copy to clipboard".to_string(),
-                                        actions:vec![action {
-                                            icon:chipboard_svg.to_string(),
-                                            tooltip:"Enter".to_string(),
-                                            value:val.to_string(),
-                                        }],
-                                    };
-                                    Box::new(res) as Box<dyn Any>
-                                },
-                                Err(e)=>{
-                                    Box::new(e) as Box<dyn Any>
-                                }
-                            }
-                        }else{
-                            Box::new("error param can't get") as Box<dyn Any>
-                        }
+        let cmd = CommandNode::new("cal").then(
+            CommandNode::new("cal_expression")
+                .set_truncate()
+                .argument(StringArgument)
+                .execute(|ctx| {
+                    if let Some(exp) = ctx.get_parm("cal_expression") {
+                        match evaluate_expression(exp) {
+                            Ok(val) => {
+                                println!("{}", val);
+                                let res = ExtensionResult {
+                                    icon: "a".to_string(),
+                                    title: val.to_string(),
+                                    description: "Press Enter to copy to clipboard".to_string(),
+                                    actions: vec![action {
+                                        icon: chipboard_svg.to_string(),
+                                        tooltip: "Enter".to_string(),
+                                        value: val.to_string(),
+                                        id:"cal_expression".to_string()
 
-                    })
-            );
+                                    }],
+                                };
+                                Box::new(res) as Box<dyn Any>
+                            }
+                            Err(e) => Box::new(e) as Box<dyn Any>,
+                        }
+                    } else {
+                        Box::new("error param can't get") as Box<dyn Any>
+                    }
+                }),
+        );
 
         command_dispatcher.register(cmd);
+
+
+
+        let action = |res:String,app:AppHandle| {
+            app.clipboard().write_text(res.to_string()).unwrap();
+        };
+        let mut action_runner = ActionRunner::get_instance();
+        action_runner.lock().unwrap().add("cal_expression", Box::new(action));
+
     }
 
-    fn OnUnmount<>(&self, command_dispatcher: &mut CommandDispatcher) {}
+    fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher) {}
 }
 
-
 #[cfg(test)]
-mod tests{
+mod tests {
     use crate::extension::cal_plugin::evaluate_expression;
 
     #[test]
@@ -295,7 +316,7 @@ mod tests{
             "-3.5 * (2 + 4)^2",
             "((2+3)*4)^2",
             "3 + * ", // 错误示例
-            "1 + .2"
+            "1 + .2",
         ];
 
         for expr in exprs {
@@ -305,6 +326,4 @@ mod tests{
             }
         }
     }
-
 }
-
