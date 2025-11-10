@@ -9,7 +9,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
-import { listen } from "@tauri-apps/api/event";
 
 
 const cursorPos = defineModel<Number>('cursorPos');
