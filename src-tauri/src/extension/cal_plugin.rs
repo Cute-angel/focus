@@ -263,7 +263,7 @@ impl Extension for Calculator {
             CommandNode::new("cal_expression")
                 .set_truncate()
                 .argument(StringArgument)
-                .execute(|ctx| {
+                .execute(|ctx,_| {
                     if let Some(exp) = ctx.get_parm("cal_expression") {
                         match evaluate_expression(exp) {
                             Ok(val) => {

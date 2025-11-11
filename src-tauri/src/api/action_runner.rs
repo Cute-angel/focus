@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex};
 use tauri::AppHandle;
 
-type Action = Box<dyn Fn(String,AppHandle) + Send + Sync + 'static>;
+pub type Action = Box<dyn Fn(String,AppHandle) + Send + Sync + 'static>;
 type ArcMutex<T> = Arc<Mutex<T>>;
 
 pub struct ActionRunner {

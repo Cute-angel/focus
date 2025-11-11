@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::collections::HashMap;
+use tauri::AppHandle;
 
 pub trait Parameter {
     fn parse(&self, _: &str) -> Result<String, String>;
@@ -21,7 +22,7 @@ impl Parameter for StringArgument {
 pub struct CommandNode {
     pub name: String,
     pub child: HashMap<String, CommandNode>,
-    pub execute: Option<Box<dyn Fn(CommandContext) -> Box<dyn Any> + Send>>,
+    pub execute: Option<Box<dyn Fn(CommandContext,AppHandle) -> Box<dyn Any> + Send>>,
     pub node_type: NodeType,
     pub truncation: bool,
 }
@@ -57,7 +58,7 @@ impl CommandNode {
 
     pub fn execute<F>(mut self, f: F) -> Self
     where
-        F: (Fn(CommandContext) -> Box<dyn Any>) + 'static + Send,
+        F: (Fn(CommandContext,AppHandle) -> Box<dyn Any>) + 'static + Send,
     {
         self.execute = Some(Box::new(f));
         self
@@ -115,7 +116,7 @@ impl CommandDispatcher {
         &mut self,
         input: String,
     ) -> Option<(
-        &Box<dyn Fn(CommandContext) -> Box<(dyn Any + 'static)> + Send>,
+        &Box<dyn Fn(CommandContext,AppHandle) -> Box<(dyn Any + 'static)> + Send>,
         CommandContext,
     )> {
         let command_content;
@@ -202,14 +203,27 @@ mod tests {
         CommandContext, CommandDispatcher, CommandNode, NodeType, StringArgument,
     };
     use std::any::Any;
+    use tauri::AppHandle;
+
+
+    fn dummy_app() -> AppHandle {
+        use tauri::Manager;
+
+        tauri::Builder::default()
+            .build(tauri::generate_context!())
+            .expect("failed to build dummy tauri app")
+            .app_handle().clone()
+    }
 
     #[test]
     fn test_command_node() {
+        let app = dummy_app();
+
         let cmd = CommandNode::new("test").then(
             CommandNode::new("args").then(
                 CommandNode::new("arg1")
                     .argument(StringArgument)
-                    .execute(|f| {
+                    .execute(|f,_app| {
                         assert_eq!(f.get_parm("arg1"), Some(&Box::new(String::from("123"))));
                         assert_eq!(f.get_parm("args"), None);
 
@@ -220,14 +234,15 @@ mod tests {
         let mut command_dispatcher = CommandDispatcher::new("/");
         command_dispatcher.register(cmd);
 
-        if let Some((func, ctx)) = command_dispatcher.run("/test        args 123".to_string()) {
-            func(ctx);
+        if let Some((_func, ctx)) = command_dispatcher.run("/test        args 123".to_string()) {
+            assert_eq!(ctx.get_parm("arg1"), Some(&Box::new(String::from("123"))));
+            assert_eq!(ctx.get_parm("args"), None);
         }
     }
 
     #[test]
     fn test_truncation() {
-        let func = |f: CommandContext| {
+        let func = |f: CommandContext,_app| {
             assert_eq!(
                 f.get_parm("arg1"),
                 Some(&Box::new("first arg1 arg2".to_string()))
@@ -244,7 +259,7 @@ mod tests {
         let mut command_dispatcher = CommandDispatcher::new("/");
         command_dispatcher.register(cmd);
 
-        if let Some((func, ctx)) =
+        if let Some((_func, ctx)) =
             command_dispatcher.run("/test            first arg1 arg2".to_string())
         {
             assert!(ctx.get_parm("arg1").is_none());

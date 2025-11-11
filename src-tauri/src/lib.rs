@@ -8,6 +8,9 @@ use tauri::async_runtime::Mutex;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
+use crate::commands::{query, run_action};
+use crate::extension::app_plugin::AppPlugin;
+
 mod api;
 mod commands;
 mod extension;
@@ -16,6 +19,7 @@ mod extension;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
@@ -55,6 +59,8 @@ pub fn run() {
             let mut command_dispatcher = CommandDispatcher::new("/");
             let demo = DemoExtension::default();
             let cal = Calculator::default();
+            let app_manager = AppPlugin::default();
+
 
             // let plugin_list: Vec<Box<dyn Extension>> = vec![
             //     Box::new(demo) as Box<dyn Extension>,  // 显式地转换为 Box<dyn Extension>
@@ -66,6 +72,7 @@ pub fn run() {
             // }
             demo.OnMount(&mut command_dispatcher);
             cal.OnMount(&mut command_dispatcher);
+            app_manager.OnMount(&mut command_dispatcher);
 
             app.manage(Mutex::new(command_dispatcher));
 
@@ -73,8 +80,8 @@ pub fn run() {
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            commands::query,
-            commands::run_action
+            query,
+            run_action
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

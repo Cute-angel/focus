@@ -17,7 +17,7 @@ pub struct ExtensionResult {
     pub(crate) actions: Vec<action>,
 }
 
-#[derive(serde::Serialize, Debug)]
+#[derive(serde::Serialize, Debug,Clone)]
 pub struct Results {
     pub(crate) total_count: usize,
     pub(crate) items: Vec<ExtensionResult>,

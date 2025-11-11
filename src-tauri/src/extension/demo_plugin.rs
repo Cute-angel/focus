@@ -17,7 +17,7 @@ impl Default for DemoExtension {
 
 impl Extension for DemoExtension {
     fn OnMount(&self, command_dispatcher: &mut CommandDispatcher) {
-        let func = |ctx: CommandContext| {
+        let func = |ctx: CommandContext,_| {
             let str1 = String::from("this is a demo extension");
 
             let res = ExtensionResult {

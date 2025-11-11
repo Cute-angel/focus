@@ -13,7 +13,7 @@
             <p class="text-base-content/60">{{ description }}</p>
         </div>
         <div class=" ml-auto">
-            <actions-box :-action-list="actions" :-select-action="selectedAction" v-if="isSelect" />
+            <actions-box :-action-list="actions" :-select-action="selectedAction" v-if="isShow" />
         </div>
 
     </div>
@@ -21,11 +21,12 @@
 
 <script setup lang="ts">
 
+import { computed, ComputedRef } from 'vue';
 import ActionsBox from './ActionsBox.vue';
 import { type Action } from './ActionsBox.vue'
 
 
-defineProps<{
+const props = defineProps<{
     icon: String,
     title: String,
     description: String,
@@ -33,6 +34,15 @@ defineProps<{
     isSelect: Boolean,
     selectedAction: Number
 }>()
+
+const isShow: ComputedRef<Boolean> = computed(() => {
+    console.log(props.actions)
+    if (props.actions.length === 1 && props.actions[0].icon === "hide") {
+        return false
+    } else {
+        return props.isSelect
+    }
+})
 
 
 </script>
