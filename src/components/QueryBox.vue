@@ -7,7 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { onMounted, ref } from "vue";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 
 
@@ -15,16 +15,12 @@ const cursorPos = defineModel<Number>('cursorPos');
 const query = defineModel<String>('query');
 const inputElement = ref<HTMLElement>();
 
-watch(query, (newQuery) => {
-    console.log("Query changed:", newQuery);
-});
 
 
 
 const updateCursor = (e: Event) => {
     const inputElement = e.target as HTMLInputElement
     cursorPos.value = inputElement.selectionStart ?? 0
-    console.log(cursorPos.value)
 }
 
 

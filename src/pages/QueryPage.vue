@@ -8,7 +8,7 @@
                 <li class=" w-full flex-1 " v-for="(result, index) in results">
                     <ResultItem :key="index" :icon="result.icon" :title="result.title" :description="result.description"
                         :actions="result.actions" :is-select="selectedIndex === index" :selected-action="selectedAction"
-                        class=" mx-4 mb-2 mt-1" />
+                        class=" mx-2 mb-2 mt-1 px-2" />
                 </li>
             </ul>
         </div>
@@ -122,7 +122,7 @@ const autoResizeWithObserver = (el: HTMLElement) => {
     const observer = new ResizeObserver(async () => {
         const reac = el.getBoundingClientRect()
         await appWindow.setSize(new LogicalSize(
-            Math.ceil(reac.width),
+            800,
             Math.ceil(reac.height)
         ))
     })
