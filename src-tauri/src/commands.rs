@@ -1,19 +1,12 @@
-use std::env::var;
-use std::process::id;
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use serde::Serialize;
-use serde_json::Number;
-use std::sync::LazyLock;
+use std::path::PathBuf;
 use std::vec;
 use tauri::{AppHandle, Runtime, State};
 
-use crate::api::command_tree::CommandDispatcher;
-use crate::api::{action_runner, extension};
-use crate::api::extension::{action, ExtensionResult, Results};
-use tauri::async_runtime::Mutex;
 use crate::api::action_runner::ActionRunner;
-
-
+use crate::api::command_tree::CommandDispatcher;
+use crate::api::extension::{ExtensionResult, Results};
+use tauri::async_runtime::Mutex;
+use crate::utils::{ IconExtractor};
 
 // 创建在我们程序中可能发生的所有错误
 #[derive(Debug, thiserror::Error)]
@@ -72,6 +65,11 @@ pub fn run_action(id: String, val:String, app:AppHandle ) {
         action(val,app);
     }
 
+
+}
+
+#[tauri::command]
+pub async fn get_icon_res(){
 
 }
 

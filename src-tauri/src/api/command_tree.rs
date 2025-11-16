@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::collections::HashMap;
+use std::future::Future;
 use tauri::AppHandle;
 
 pub trait Parameter {
@@ -18,6 +19,13 @@ impl Parameter for StringArgument {
         Ok(input.to_string())
     }
 }
+
+
+
+
+pub type Callback =
+Box<dyn Fn(CommandContext, AppHandle) -> Box<dyn Any > + Send>;
+
 
 pub struct CommandNode {
     pub name: String,
@@ -58,7 +66,7 @@ impl CommandNode {
 
     pub fn execute<F>(mut self, f: F) -> Self
     where
-        F: (Fn(CommandContext,AppHandle) -> Box<dyn Any>) + 'static + Send,
+        F: (Fn(CommandContext,AppHandle) -> Box<dyn Any >) + 'static + Send,
     {
         self.execute = Some(Box::new(f));
         self
@@ -200,7 +208,7 @@ impl CommandDispatcher {
 #[cfg(test)]
 mod tests {
     use crate::api::command_tree::{
-        CommandContext, CommandDispatcher, CommandNode, NodeType, StringArgument,
+        CommandContext, CommandDispatcher, CommandNode, StringArgument,
     };
     use std::any::Any;
     use tauri::AppHandle;

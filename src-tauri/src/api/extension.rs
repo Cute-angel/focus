@@ -1,5 +1,4 @@
 use crate::api::command_tree::{CommandDispatcher, CommandNode};
-use serde::Serialize;
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct action {
