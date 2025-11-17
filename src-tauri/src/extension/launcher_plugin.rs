@@ -166,12 +166,14 @@ impl Launcher {
                 {
                     let path = entry.path().to_path_buf();
                     let mut file_name = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
-                    if let Some(input) = file_name.strip_prefix("MY_COMPUTER\\") {
-                        file_name = input.to_string();
-                    }
 
 
-                    if let Some(real_path) =  self.resolve_lnk(&path){
+
+
+                    if let Some(mut real_path) =  self.resolve_lnk(&path){
+                        if let Some(input) = real_path.strip_prefix("MY_COMPUTER\\") {
+                            real_path = input.to_string();
+                        }
                         let _ = &search.push(
                             (self.build_key_from_name(file_name.clone()),real_path.clone(),file_name)
                         );
