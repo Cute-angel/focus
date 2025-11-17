@@ -24,7 +24,7 @@ impl Parameter for StringArgument {
 
 
 pub type Callback =
-Box<dyn Fn(CommandContext, AppHandle) -> Box<dyn Any > + Send>;
+Box<dyn Fn(CommandContext, AppHandle) -> Box<dyn Any > + Send >;
 
 
 pub struct CommandNode {

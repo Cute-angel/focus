@@ -166,8 +166,8 @@ impl IconExtractor {
         let mut key = path.file_name().unwrap().to_str().unwrap().to_string();
 
 
-        let ext = path.extension().unwrap_or(OsStr::new("empty")).to_str().unwrap();
-        if !(ext == "exe" || ext == "lnk" || ext == "ico" ) {
+        let ext = path.extension().unwrap_or(OsStr::new("empty")).to_str().unwrap().to_lowercase();
+        if !(ext == "exe" || ext == "lnk" || ext == "ico") {
             key = ext.to_string();
         }
 

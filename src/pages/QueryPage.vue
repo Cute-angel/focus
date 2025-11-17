@@ -97,12 +97,7 @@ const handleKeydown = (event: KeyboardEvent) => {
         }
     }
 
-    const container = scrollContainer.value;
-    const selectedItem = container?.children[selectedIndex.value] as HTMLElement;
-    selectedItem?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start' // Align the element at the top of the scroll container
-    });
+    scrollToSelected();
 
     if (event.key === 'ArrowLeft') {
         if (selectedAction.value >= 0) selectedAction.value--;
@@ -117,6 +112,15 @@ const handleKeydown = (event: KeyboardEvent) => {
     }
 };
 
+
+const scrollToSelected = () => {
+    const container = scrollContainer.value;
+    const selectedItem = container?.children[selectedIndex.value] as HTMLElement;
+    selectedItem?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start' // Align the element at the top of the scroll container
+    });
+}
 
 const autoResizeWithObserver = (el: HTMLElement) => {
     const observer = new ResizeObserver(async () => {
@@ -147,7 +151,8 @@ watch(inputText, () => {
     invoke("query", { inputText: inputText.value }).then((res: any) => {
         console.log(res);
         results.value = res.items as Array<Result>;
-        selectedIndex.value = results.value.length > 0 ? -1 : -1;
+        selectedIndex.value = results.value.length > 0 ? 0 : -1;
+        scrollToSelected();
     })
 
 })

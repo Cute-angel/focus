@@ -36,6 +36,10 @@ windows = { version = "0.62.2", features = ["Win32_UI_Shell", "Win32_UI_WindowsA
 image = "0.25.8"
 exr = "1.74.0"
 base64 = "0.22.1"
+rust-fuzzy-search = "=0.1.1"
+lnk_parser = "0.4.2"
+walkdir = "2.5.0"
+pinyin = "0.10.0"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2"

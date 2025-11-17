@@ -11,6 +11,7 @@ use tauri::Manager;
 use crate::commands::{query, run_action};
 use crate::extension::app_plugin::AppPlugin;
 use crate::extension::file_plugin::FilePlugin;
+use crate::extension::launcher_plugin::Launcher;
 
 mod api;
 mod commands;
@@ -63,12 +64,15 @@ pub fn run() {
                 api::register_globals_shortcut(app)?;
             }
 
+
             // command_dispatcher
             let mut command_dispatcher = CommandDispatcher::new("/");
             let demo = DemoExtension::default();
             let cal = Calculator::default();
             let app_manager = AppPlugin::default();
             let file = FilePlugin::default();
+            let launcher = Launcher::default();
+            let _ = launcher.init();
 
             // let plugin_list: Vec<Box<dyn Extension>> = vec![
             //     Box::new(demo) as Box<dyn Extension>,  // 显式地转换为 Box<dyn Extension>
@@ -82,6 +86,7 @@ pub fn run() {
             cal.OnMount(&mut command_dispatcher);
             app_manager.OnMount(&mut command_dispatcher);
             file.OnMount(&mut command_dispatcher);
+            launcher.OnMount(&mut command_dispatcher);
 
             app.manage(Mutex::new(command_dispatcher));
 

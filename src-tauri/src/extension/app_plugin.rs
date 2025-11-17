@@ -76,7 +76,7 @@ impl AppPlugin {
         };
 
 
-        CommandNode::new("app").then(
+        CommandNode::new("manager").then(
             CommandNode::new("restart").execute(show_restart_app)
         ).then(
             CommandNode::new("stop").execute(show_stop_app)
