@@ -88,8 +88,11 @@ impl EverythingHelper {
             Err(EverythingError::Ipc) => panic!("Everything is required to run in the background."),
             _ => {
                 let mut searcher = everything.searcher();
-
-                searcher.set_search(input);
+                let query_str = format!(
+                    "{} !path:*$RECYCLE.BIN* !path:C:\\Windows\\*",
+                    input.to_string()
+                );
+                searcher.set_search(query_str.as_str());
                 searcher
                     .set_request_flags(
                         RequestFlags::EVERYTHING_REQUEST_FILE_NAME
@@ -101,7 +104,7 @@ impl EverythingHelper {
                     .set_sort(SortType::EVERYTHING_SORT_FILE_LIST_FILENAME_ASCENDING);
 
                 //assert_eq!(searcher.get_match_case(), false);
-
+                dbg!(&searcher.get_search());
                 // Send IPC query in Async, await for the result. So we are _unblocking_ now.
                 // Some heavy query (like search single 'a') may take a lot of time in IPC data transfer.
                 // So during this time, tokio goes to deal with other tasks.
@@ -170,8 +173,6 @@ impl IconExtractor {
         if !(ext == "exe" || ext == "lnk" || ext == "ico") {
             key = ext.to_string();
         }
-
-
         let lock = self.cache.lock().unwrap();
         if let Some(data) = lock.get(&key) {
             Some(data.clone())
@@ -187,8 +188,6 @@ impl IconExtractor {
                 None
             }
         }
-
-
     }
     fn _get_icon(&self,path:&PathBuf) -> Option<RgbaImage>{
         let a = path.extension();
@@ -357,10 +356,10 @@ impl IconExtractor {
 
 pub fn to_base64(data:RgbaImage) -> String {
     let mut buffer = Vec::new();
-    let pngencoder = PngEncoder::new(&mut buffer);
+    let png_encoder = PngEncoder::new(&mut buffer);
 
 
-    pngencoder.write_image(data.as_raw(), data.width(),data.height(),Rgba8);
+    let _ = png_encoder.write_image(data.as_raw(), data.width(),data.height(),Rgba8);
 
     use base64::{engine::general_purpose, Engine as _, };
 
