@@ -153,8 +153,10 @@ watch(inputText, () => {
         results.value = res.items as Array<Result>;
         selectedIndex.value = results.value.length > 0 ? 0 : -1;
         scrollToSelected();
-    })
-
+    }).catch((error:any) => {
+              console.log(error);
+          }
+    )
 })
 
 
