@@ -2,7 +2,7 @@ use std::any::Any;
 use tauri::AppHandle;
 use crate::api::action_runner::{Action, ActionRunner, ACTION_RUNNER};
 use crate::api::command_tree::{CommandContext, CommandDispatcher, CommandNode};
-use crate::api::extension::{action, Extension, ExtensionResult, Results};
+use crate::api::extension::{action, Extension, ExtensionResult, MetaData, Results};
 
 #[derive(Default)]
 pub struct AppPlugin {}
@@ -57,10 +57,10 @@ impl AppPlugin {
         let value = restart_res.clone();
         let value2 = stop_res.clone();
         let show_restart_app = move |_ctx:CommandContext,_app:AppHandle| {
-            Box::new(restart_res.clone()) as Box<dyn Any>
+           restart_res.clone().into()
         };
         let show_stop_app = move |ctx:CommandContext,app:AppHandle| {
-            Box::new(stop_res.clone()) as Box<dyn Any>
+            stop_res.clone().into()
         };
 
         let show_app = move |ctx,_|{
@@ -68,7 +68,7 @@ impl AppPlugin {
                 total_count:2,
                 items:vec![value.clone(),value2.clone()],
             };
-            Box::new(res) as Box<dyn Any>
+            res.into()
         };
 
         let func_stop_app = |ctx:CommandContext,app:AppHandle| {
@@ -97,6 +97,10 @@ impl Extension for AppPlugin {
         let action_runner = ActionRunner::get_instance();
         action_runner.lock().unwrap().add("app_manager",self.get_plugin_action());
 
+    }
+
+    fn get_meta_data(&self) -> MetaData {
+        MetaData::default_builder("Manager").set_priority(10).build()
     }
 
 

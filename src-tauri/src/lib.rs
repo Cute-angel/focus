@@ -1,24 +1,25 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
+use std::sync::{Arc, OnceLock};
 use crate::api::command_tree::CommandDispatcher;
 use crate::api::extension::Extension;
-use crate::extension::cal_plugin::Calculator;
-use crate::extension::demo_plugin::DemoExtension;
+use crate::plugins::CalculatorPlugin;
+use crate::plugins::DemoPlugin;
 use tauri::async_runtime::Mutex;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::Manager;
+use tauri::{AppHandle, Manager};
 use crate::commands::{query, run_action};
-use crate::extension::app_plugin::AppPlugin;
-use crate::extension::file_plugin::FilePlugin;
-use crate::extension::launcher_plugin::Launcher;
-
+use crate::plugins::AppPlugin;
+use crate::plugins::FilePlugin;
+use crate::plugins::LauncherPlugin;
 mod api;
 mod commands;
-mod extension;
+mod plugins;
 pub mod utils;
 mod core;
 
+static APP_HANDLE: OnceLock<Arc<AppHandle>> = OnceLock::new();
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -67,11 +68,11 @@ pub fn run() {
 
             // command_dispatcher
             let mut command_dispatcher = CommandDispatcher::new("/");
-            let demo = DemoExtension::default();
-            let cal = Calculator::default();
+            let demo = DemoPlugin::default();
+            let cal = CalculatorPlugin::default();
             let app_manager = AppPlugin::default();
             let file = FilePlugin::default();
-            let launcher = Launcher::default();
+            let launcher = LauncherPlugin::default();
             let _ = launcher.init();
 
             // let plugin_list: Vec<Box<dyn Extension>> = vec![
@@ -90,6 +91,7 @@ pub fn run() {
 
             app.manage(Mutex::new(command_dispatcher));
 
+            APP_HANDLE.set(Arc::new(app.handle().clone())).ok();
             Ok(())
         })
 
@@ -103,6 +105,7 @@ pub fn run() {
                     println!("用户请求退出");
                 }
                 tauri::RunEvent::Exit => {
+
                     println!("应用退出");
                 }
                 _ => {}

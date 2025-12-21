@@ -2,6 +2,14 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::future::Future;
 use tauri::AppHandle;
+use thiserror::Error;
+use crate::api::extension::{ExtensionResult, Results};
+
+#[derive(Debug, Error)]
+pub enum  PluginError{
+    #[error("{0}:{1}")]
+    Error(String,String),
+}
 
 pub trait Parameter {
     fn parse(&self, _: &str) -> Result<String, String>;
@@ -21,16 +29,41 @@ impl Parameter for StringArgument {
 }
 
 
+pub enum  PluginResult {
+    ExtensionResult(ExtensionResult),
+    Results(Results),
+    PluginError(PluginError),
+    null
+}
 
+impl From<ExtensionResult> for PluginResult {
+    fn from(result: ExtensionResult) -> Self {
+        PluginResult::ExtensionResult(result)
+    }
+}
+
+impl From<Results> for PluginResult {
+    fn from(result: Results) -> Self {
+        PluginResult::Results(result)
+    }
+}
+
+
+impl From<PluginError> for PluginResult {
+    fn from(error: PluginError) -> Self {
+        PluginResult::PluginError(error)
+    }
+}
 
 pub type Callback =
-Box<dyn Fn(CommandContext, AppHandle) -> Box<dyn Any > + Send >;
+Box<dyn Fn(CommandContext, AppHandle) -> PluginResult + Send >;
+
 
 
 pub struct CommandNode {
     pub name: String,
     pub child: HashMap<String, CommandNode>,
-    pub execute: Option<Box<dyn Fn(CommandContext,AppHandle) -> Box<dyn Any> + Send>>,
+    pub execute: Option<Callback>,
     pub node_type: NodeType,
     pub truncation: bool,
 }
@@ -65,8 +98,7 @@ impl CommandNode {
     }
 
     pub fn execute<F>(mut self, f: F) -> Self
-    where
-        F: (Fn(CommandContext,AppHandle) -> Box<dyn Any >) + 'static + Send,
+    where F: Fn(CommandContext, AppHandle) -> PluginResult + Send + 'static
     {
         self.execute = Some(Box::new(f));
         self
@@ -124,7 +156,7 @@ impl CommandDispatcher {
         &mut self,
         input: String,
     ) -> Option<(
-        &Box<dyn Fn(CommandContext,AppHandle) -> Box<(dyn Any + 'static)> + Send>,
+        &Callback,
         CommandContext,
     )> {
         let command_content;
@@ -207,9 +239,7 @@ impl CommandDispatcher {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::command_tree::{
-        CommandContext, CommandDispatcher, CommandNode, StringArgument,
-    };
+    use crate::api::command_tree::{Callback, CommandContext, CommandDispatcher, CommandNode, PluginResult, StringArgument};
     use std::any::Any;
     use tauri::AppHandle;
 
@@ -235,7 +265,7 @@ mod tests {
                         assert_eq!(f.get_parm("arg1"), Some(&Box::new(String::from("123"))));
                         assert_eq!(f.get_parm("args"), None);
 
-                        Box::new(()) as Box<dyn Any>
+                        PluginResult::null
                     }),
             ),
         );
@@ -250,13 +280,13 @@ mod tests {
 
     #[test]
     fn test_truncation() {
-        let func = |f: CommandContext,_app| {
+        let func:Callback = Box::new(|f: CommandContext,_app| {
             assert_eq!(
                 f.get_parm("arg1"),
                 Some(&Box::new("first arg1 arg2".to_string()))
             );
-            return Box::new(1) as Box<dyn Any>;
-        };
+            PluginResult::null
+        });
 
         let cmd = CommandNode::new("test").then(
             CommandNode::new("first")

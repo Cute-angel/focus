@@ -1,13 +1,14 @@
 use crate::api::action_runner::ActionRunner;
-use crate::api::command_tree::{CommandDispatcher, CommandNode, StringArgument};
-use crate::api::extension::{action, Extension, ExtensionResult};
-use crate::extension::cal_plugin::CalculatorError::{
+use crate::api::command_tree::{CommandDispatcher, CommandNode, PluginError, StringArgument};
+use crate::api::extension::{action, Extension, ExtensionResult, MetaData};
+use crate::plugins::cal_plugin::CalculatorError::{
     DivisionByZeroError, FormatError, LessOperatorError, OperatorLocationError, ParenCloseError,
     Unknown,
 };
 use std::any::Any;
 use tauri::AppHandle;
 use tauri_plugin_clipboard_manager::ClipboardExt;
+use crate::api::types::PluginResult;
 
 #[derive(Debug, Clone)]
 enum Token {
@@ -32,6 +33,17 @@ pub enum CalculatorError {
     #[error("{0} cannot be divided by zero")]
     DivisionByZeroError(f64),
 }
+
+impl From<CalculatorError> for PluginResult {
+    fn from(err: CalculatorError) -> Self {
+        PluginResult::PluginError(
+            PluginError::Error("Calculator".to_string(), format!("{:?}", err))
+        )
+    }
+}
+
+
+
 
 fn tokenize(expr: &str) -> Result<Vec<Token>, CalculatorError> {
     let expr = expr.trim_matches('=');
@@ -250,9 +262,9 @@ pub fn evaluate_expression(expr: &str) -> Result<f64, CalculatorError> {
     eval_rpn(&rpn)
 }
 #[derive(Default)]
-pub(crate) struct Calculator;
+pub struct CalculatorPlugin;
 
-impl Extension for Calculator {
+impl Extension for CalculatorPlugin {
     fn OnMount(&self, command_dispatcher: &mut CommandDispatcher) {
         let chipboard_svg = r#"<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
@@ -265,29 +277,32 @@ impl Extension for Calculator {
                 .argument(StringArgument)
                 .execute(|ctx,_| {
                     if let Some(exp) = ctx.get_parm("cal_expression") {
-                        match evaluate_expression(exp) {
-                            Ok(val) => {
-                                println!("{}", val);
-                                let icon = r#"<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z" /></svg>"#.to_string();
-                                let res = ExtensionResult {
-                                    icon,
-                                    title: val.to_string(),
-                                    description: "Press Enter to copy to clipboard".to_string(),
-                                    actions: vec![action {
-                                        icon: chipboard_svg.to_string(),
-                                        tooltip: "Enter".to_string(),
-                                        value: val.to_string(),
-                                        id:"cal_expression".to_string()
-
-                                    }],
-                                };
-                                Box::new(res) as Box<dyn Any>
+                        let val = match evaluate_expression(&exp) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                return e.into();
                             }
-                            Err(e) => Box::new(e) as Box<dyn Any>,
-                        }
+                        };
+                        println!("{}", val);
+                        let icon = r#"<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z" /></svg>"#.to_string();
+                        let res = ExtensionResult {
+                            icon,
+                            title: val.to_string(),
+                            description: "Press Enter to copy to clipboard".to_string(),
+                            actions: vec![action {
+                                icon: chipboard_svg.to_string(),
+                                tooltip: "Enter".to_string(),
+                                value: val.to_string(),
+                                id:"cal_expression".to_string()
+
+                            }],
+                        };
+                        res.into()
+
+
                     } else {
-                        Box::new("error param can't get") as Box<dyn Any>
+                        PluginError::Error("Calculator".to_string(),"".to_string()).into()
                     }
                 }),
         );
@@ -305,11 +320,15 @@ impl Extension for Calculator {
     }
 
     fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher) {}
+
+    fn get_meta_data(&self) -> MetaData {
+        MetaData::default_builder("Calculator").set_version("1.0.0").set_priority(90).build()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::extension::cal_plugin::evaluate_expression;
+    use crate::plugins::cal_plugin::evaluate_expression;
 
     #[test]
     fn test_evaluate_expression() {

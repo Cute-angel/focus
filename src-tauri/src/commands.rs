@@ -1,17 +1,17 @@
-use std::path::PathBuf;
 use std::vec;
 use tauri::{AppHandle, Runtime, State};
 
 use crate::api::action_runner::ActionRunner;
-use crate::api::command_tree::CommandDispatcher;
-use crate::api::extension::{ExtensionResult, Results};
+use crate::api::command_tree::{CommandDispatcher, PluginError};
+use crate::api::extension::Results;
+use crate::api::types::PluginResult;
 use tauri::async_runtime::Mutex;
-use crate::utils::{ IconExtractor};
 
 // 创建在我们程序中可能发生的所有错误
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-
+    #[error(transparent)]
+    Plugin(#[from] PluginError),
 }
 
 impl serde::Serialize for Error {
@@ -29,26 +29,32 @@ pub async fn query<R: Runtime>(
     window: tauri::Window<R>,
     input_text: String,
     dispatcher: State<'_, Mutex<CommandDispatcher>>,
-) -> Result<Results, String> {
-
-
+) -> Result<Results, Error> {
 
     let mut dispatcher = dispatcher.lock().await;
     if let Some((func, ctx)) = dispatcher.run(input_text) {
-        let a = func(ctx,app);
-        if let Some(extension_result) = a.downcast_ref::<ExtensionResult>() {
-            Ok(Results {
-                total_count: 1,
-                items: vec![extension_result.clone()],
-            })
-        }else if let Some(res) = a.downcast_ref::<Results>() {
-            Ok(res.clone())
-        } else {
-            Ok(Results {
-                total_count: 0,
-                items: Vec::new(),
-            })
+        match func(ctx,app) {
+            PluginResult::null=> {
+                Ok(Results {
+                    total_count: 0,
+                    items: Vec::new(),
+                })
+            },
+            PluginResult::ExtensionResult(res) => {
+                Ok(Results {
+                    total_count: 1,
+                    items: vec![res.clone()],
+                })
+            }
+            PluginResult::Results(res) => {
+                Ok(res.clone())
+            }
+            PluginResult::PluginError(err) => {
+                Err(Error::Plugin(err))
+            }
         }
+
+
     } else {
         Ok(Results {
             total_count: 0,
@@ -59,13 +65,11 @@ pub async fn query<R: Runtime>(
 
 #[tauri::command]
 pub fn run_action(id: String, val:String, app:AppHandle ) {
-    println!("{id}");
-    let action_runner = ActionRunner ::get_instance();
+    dbg!("{id}");
+    let action_runner = ActionRunner::get_instance();
     if let Some(action)=  action_runner.lock().unwrap().get(id.as_ref()){
         action(val,app);
     }
-
-
 }
 
 #[tauri::command]

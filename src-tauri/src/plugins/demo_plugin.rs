@@ -1,24 +1,24 @@
 use crate::api::command_tree::{CommandContext, CommandDispatcher, CommandNode, StringArgument};
-use crate::api::extension::{extension_info, Extension, ExtensionResult, Results};
+use crate::api::extension::{MetaData, Extension, ExtensionResult, Results};
 use std::any::Any;
 use std::process::Command;
 
-pub struct DemoExtension {
-    pub(crate) info: extension_info,
+pub struct DemoPlugin {
+    pub(crate) info: MetaData,
 }
 
-impl Default for DemoExtension {
+impl Default for DemoPlugin {
     fn default() -> Self {
         Self {
-            info: extension_info::default("demo-plugin"),
+            info: MetaData::default_builder("demo-plugin"),
         }
     }
 }
 
-impl Extension for DemoExtension {
+impl Extension for DemoPlugin {
     fn OnMount(&self, command_dispatcher: &mut CommandDispatcher) {
         let func = |ctx: CommandContext,_| {
-            let str1 = String::from("this is a demo extension");
+            let str1 = String::from("this is a demo plugins");
 
             let res = ExtensionResult {
                 icon: "a".to_string(),
@@ -28,7 +28,7 @@ impl Extension for DemoExtension {
             };
             println!("{:?}", res);
 
-            return Box::new(res) as Box<dyn Any>;
+            res.into()
         };
 
         let command = CommandNode::new("demo").then(
@@ -44,5 +44,9 @@ impl Extension for DemoExtension {
 
     fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher) {
         todo!()
+    }
+
+    fn get_meta_data(&self) -> MetaData {
+        self.info.clone()
     }
 }

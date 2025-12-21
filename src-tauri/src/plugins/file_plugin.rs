@@ -7,11 +7,12 @@ use crate::api::action_runner::{Action, ActionRunner};
 use crate::api::command_tree::{
     Callback, CommandContext, CommandDispatcher, CommandNode, StringArgument,
 };
-use crate::api::extension::{action, Extension, ExtensionResult, Results};
+use crate::api::extension::{action, Extension, ExtensionResult, MetaData, Results};
 use crate::utils::EverythingHelper;
 use crate::utils::to_base64;
 use crate::utils::IconExtractor;
 use futures::executor::block_on;
+use crate::api::types::PluginResult;
 
 pub struct FilePlugin {}
 
@@ -29,7 +30,7 @@ impl FilePlugin {
     fn get_show_result_func(&self) -> Callback {
         let async_func = async |ctx: CommandContext,
                                 app: AppHandle|
-               -> Box<(dyn Any + 'static + Send)> {
+               -> PluginResult {
             let helper = &*EVERY_THING_HELPER;
             if let Some(str) = ctx.get_parm("file_name") {
                 let info = helper.lock().unwrap().query(str).await;
@@ -66,12 +67,12 @@ impl FilePlugin {
                     items: result_list,
                 };
                 //dbg!(&result);
-                Box::new(result) as Box<(dyn Any + 'static + Send)>
+                result.into()
             } else {
-                Box::new("Can't get arg") as Box<(dyn Any + 'static + Send)>
+                PluginResult::null
             }
         };
-        Box::new(move |ctx, app| -> Box<dyn Any> {
+        Box::new(move |ctx, app| -> PluginResult {
             let fut = async_func(ctx, app);
             block_on(fut)
         })
@@ -80,6 +81,7 @@ impl FilePlugin {
         let node1 = CommandNode::new("file").then(
             CommandNode::new("file_name")
                 .argument(StringArgument)
+                .set_truncate()
                 .execute(self.get_show_result_func()),
         );
         node1
@@ -109,5 +111,9 @@ impl Extension for FilePlugin {
 
     fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher) {
         todo!()
+    }
+
+    fn get_meta_data(&self) -> MetaData {
+        MetaData::default_builder("FileSearcher").build()
     }
 }

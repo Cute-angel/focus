@@ -1,11 +1,10 @@
 use crate::api::action_runner::{Action, ActionRunner};
 use crate::api::command_tree::{Callback, CommandContext, CommandDispatcher, CommandNode, StringArgument};
-use crate::api::extension::{action, Extension, ExtensionResult, Results};
+use crate::api::extension::{action, Extension, ExtensionResult, MetaData, Results};
 use crate::utils::{to_base64, IconExtractor};
 use lnk_parser::LNKParser;
 use pinyin::ToPinyin;
 use rust_fuzzy_search::fuzzy_search_best_n;
-use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
@@ -13,13 +12,14 @@ use std::thread;
 use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 use walkdir::WalkDir;
+use crate::api::types::PluginResult;
 
 static SEARCH_TABLE:LazyLock<Arc<Mutex<HashMap<String,Program>>>> = LazyLock::new(
     || Arc::new(Mutex::new(HashMap::new()))
 );
 
 
-pub struct Launcher {
+pub struct LauncherPlugin {
     data_puf:PathBuf,
     recursive_depth: usize,
 
@@ -59,15 +59,15 @@ impl Program {
 }
 
 
-impl Default for Launcher {
-    fn default() -> Launcher {
-        Launcher {
+impl Default for LauncherPlugin {
+    fn default() -> LauncherPlugin {
+        LauncherPlugin {
             data_puf:PathBuf::new(),
             recursive_depth: 4,
         }
     }
 }
-impl Launcher {
+impl LauncherPlugin {
     pub fn init(&self) {
         self.build_index();
     }
@@ -150,9 +150,6 @@ impl Launcher {
     }
 
     fn build_index(&self){
-
-
-
         let mut search:Vec<(Vec<String>,String,String)> = Vec::with_capacity(100);
         let mut data:Vec<(String,String)> = Vec::with_capacity(100);
 
@@ -167,9 +164,6 @@ impl Launcher {
                     let path = entry.path().to_path_buf();
                     let mut file_name = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
 
-
-
-
                     if let Some(mut real_path) =  self.resolve_lnk(&path){
                         if let Some(input) = real_path.strip_prefix("MY_COMPUTER\\") {
                             real_path = input.to_string();
@@ -178,11 +172,9 @@ impl Launcher {
                             (self.build_key_from_name(file_name.clone()),real_path.clone(),file_name)
                         );
                     }
-
                 }
             }
         }
-
 
         let mut lock_search = SEARCH_TABLE.lock().unwrap();
         for (keys,value,Display) in search{
@@ -197,8 +189,6 @@ impl Launcher {
             }
         }
         drop(lock_search);
-
-
     }
 
     fn build_key_from_name(&self, file_name:String) -> Vec<String> {
@@ -211,8 +201,6 @@ impl Launcher {
                 file_name.as_str().to_pinyin().flatten().map(|x| {x.first_letter()}).collect::<Vec<&str>>().join("")
             )
         }else {
-
-
             for i in file_name.split_whitespace() {
                 keys.push(
                     i.to_lowercase()
@@ -236,7 +224,7 @@ impl Launcher {
         let callback  = move |ctx:CommandContext,app:AppHandle |{
             if let Some(input) = ctx.get_parm("app_query"){
 
-                let launch = Launcher::default();
+                let launch = LauncherPlugin::default();
 
                 let test = dbg!(launch.search_program_keys(20,input));
 
@@ -271,13 +259,13 @@ impl Launcher {
                     total_count: plugin_res.len(),
                     items: plugin_res,
                 };
-                Box::new(res) as Box<dyn Any + Send + 'static>
+                res.into()
             }else {
-                Box::new(()) as Box<dyn Any + Send + 'static>
+                PluginResult::null
             }
 
         };
-        Box::new(move |ctx, app| -> Box<dyn Any> {
+        Box::new(move |ctx, app| -> PluginResult {
             callback(ctx, app)
         })
 
@@ -297,7 +285,7 @@ impl Launcher {
 }
 
 
-impl Extension for Launcher {
+impl Extension for LauncherPlugin {
     fn OnMount(&self, command_dispatcher: &mut CommandDispatcher) {
         command_dispatcher.register(
             self.get_node()
@@ -309,5 +297,9 @@ impl Extension for Launcher {
 
     fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher) {
         todo!()
+    }
+
+    fn get_meta_data(&self) -> MetaData {
+        MetaData::default_builder("AppLauncher").set_version("1.0.0").set_priority(200).build()
     }
 }

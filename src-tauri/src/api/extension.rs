@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use crate::api::command_tree::{CommandDispatcher, CommandNode};
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -22,24 +23,20 @@ pub struct Results {
     pub(crate) items: Vec<ExtensionResult>,
 }
 
-pub struct extension_info {
+#[derive(Debug, Clone)]
+pub struct MetaData {
     id: String,
-    commands: Vec<CommandNode>,
+    version: String,
     priority: usize,
 }
 
-impl extension_info {
-    pub fn default(id: &str) -> Self {
+impl MetaData {
+    pub fn default_builder(id: &str) -> Self {
         Self {
             id: id.to_string(),
-            commands: vec![],
             priority: 100,
+            version: "1.0.0".to_string(),
         }
-    }
-
-    pub fn add_command(mut self, command: CommandNode) -> Self {
-        self.commands.push(command);
-        self
     }
 
     pub fn set_priority(mut self, priority: usize) -> Self {
@@ -47,13 +44,35 @@ impl extension_info {
         self
     }
 
+    pub fn set_version(mut self, version: &str) -> Self {
+        self.version = version.to_string();
+        self
+    }
+
     pub fn build(self) -> Self {
         self
     }
+
 }
 
 pub trait Extension {
     fn OnMount(&self, command_dispatcher: &mut CommandDispatcher);
 
     fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher);
+
+    fn get_meta_data(&self) -> MetaData;
+}
+
+impl PartialOrd for dyn Extension {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(
+            self.get_meta_data().priority.cmp(&other.get_meta_data().priority)
+        )
+    }
+}
+
+impl PartialEq for dyn Extension {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_meta_data().id == other.get_meta_data().id
+    }
 }

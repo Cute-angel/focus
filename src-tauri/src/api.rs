@@ -6,6 +6,7 @@ pub mod command_tree;
 mod config_helper;
 pub mod extension;
 pub mod action_runner;
+pub mod types;
 
 #[cfg(desktop)]
 pub fn register_globals_shortcut(app: &mut App) -> Result<(), Box<dyn Error>> {
