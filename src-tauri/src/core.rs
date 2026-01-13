@@ -1,5 +1,8 @@
+mod plugin_manager;
+
 use std::collections::HashMap;
-use crate::api::command_tree::Callback;
+use crate::api::command_tree::{Callback, CommandDispatcher};
+use crate::api::extension::Extension;
 use crate::commands::Error;
 
 pub struct ShortCutDispatcher{
@@ -50,5 +53,26 @@ impl ShortCutDispatcher {
 
 
 
+    }
+}
+
+#[derive(Default)]
+pub struct Core{
+    extension_lt:Vec<Box<dyn Extension>>,
+
+}
+
+
+impl Core {
+
+    pub fn get_builder() -> Self {
+        Self::default()
+    }
+
+
+
+    pub fn add_extension(mut self, ext: Box<dyn Extension>) -> Self {
+        self.extension_lt.push(ext);
+        self
     }
 }

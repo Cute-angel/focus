@@ -1,0 +1,6 @@
+struct PluginManager {}
+
+impl PluginManager {
+
+
+}
