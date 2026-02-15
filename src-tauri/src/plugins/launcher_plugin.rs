@@ -1,4 +1,4 @@
-use crate::api::action_runner::{Action, ActionRunner};
+use crate::core::action_runner::{Action, ActionRunner};
 use crate::api::command_tree::{Callback, CommandContext, CommandDispatcher, CommandNode, StringArgument};
 use crate::api::extension::{action, Extension, ExtensionResult, MetaData, Results};
 use crate::utils::{to_base64, IconExtractor};
@@ -79,15 +79,15 @@ impl LauncherPlugin {
 
         let lt = SEARCH_TABLE.lock().unwrap().keys().cloned().collect::<Vec<String>>();
         let refs: Vec<&str> = lt.iter().map(|s| s.as_str()).collect();
-        let fuzzy_str =  fuzzy_search_best_n(&input,refs.as_ref(),num).into_iter().map(|(key,_)|key).collect::<Vec<&str>>();
-
+        let fuzzy_str =  fuzzy_search_best_n(&input,refs.as_ref(),num).into_iter().map(|(key,w)|(key,w)).collect::<Vec<(&str,f32)>>();
+        dbg!(&fuzzy_str);
         let mut map:HashSet<Program> = HashSet::new();
         let mut res:Vec<Program> = Vec::with_capacity(fuzzy_str.len());
 
 
         let lock_data = SEARCH_TABLE.lock().unwrap();
         for i in fuzzy_str.iter() {
-            if let Some(dat) = lock_data.get(*i) {
+            if let Some(dat) = lock_data.get((*i).0) {
                 if map.insert(dat.clone()){
                     res.push(dat.clone());
                 }
@@ -261,7 +261,7 @@ impl LauncherPlugin {
                 };
                 res.into()
             }else {
-                PluginResult::null
+                PluginResult::Null
             }
 
         };

@@ -1,10 +1,12 @@
 mod plugin_manager;
+mod plugin_worker;
+mod config_helper;
+mod shortcut;
+pub mod action_runner;
 
 use std::collections::HashMap;
 use crate::api::command_tree::{Callback, CommandDispatcher};
 use crate::api::extension::Extension;
-use crate::commands::Error;
-
 pub struct ShortCutDispatcher{
     store:HashMap<char,Vec<Callback>>,
     any:Vec<Callback>,
@@ -56,19 +58,24 @@ impl ShortCutDispatcher {
     }
 }
 
-#[derive(Default)]
+
 pub struct Core{
     extension_lt:Vec<Box<dyn Extension>>,
-
+    command_dispatcher: CommandDispatcher,
+    shortcut_dispatcher :ShortCutDispatcher,
 }
 
 
 impl Core {
 
-    pub fn get_builder() -> Self {
-        Self::default()
+
+    pub fn get_command_dispatcher(&mut self) -> &mut CommandDispatcher {
+        &mut self.command_dispatcher
     }
 
+    pub fn get_shortcut_dispatcher(&mut self) -> &mut ShortCutDispatcher {
+        &mut self.shortcut_dispatcher
+    }
 
 
     pub fn add_extension(mut self, ext: Box<dyn Extension>) -> Self {

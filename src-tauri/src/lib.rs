@@ -1,4 +1,6 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+#![feature(bool_to_result)]#![feature(bool_to_result)]// Learn more about Tauri commands at https://taur
+i.app/develop/calling-rust/
+
 
 use std::sync::{Arc, OnceLock};
 use crate::api::command_tree::CommandDispatcher;
@@ -22,7 +24,20 @@ mod core;
 static APP_HANDLE: OnceLock<Arc<AppHandle>> = OnceLock::new();
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+
+    #[cfg(debug_assertions)] // only enable instrumentation in development builds
+    let devtools = tauri_plugin_devtools::init();
+
+
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.plugin(devtools);
+    }
+
+
+    builder
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_fs::init())
@@ -75,14 +90,7 @@ pub fn run() {
             let launcher = LauncherPlugin::default();
             let _ = launcher.init();
 
-            // let plugin_list: Vec<Box<dyn Extension>> = vec![
-            //     Box::new(demo) as Box<dyn Extension>,  // 显式地转换为 Box<dyn Extension>
-            //     Box::new(cal) as Box<dyn Extension>,
-            // ];
-            //
-            // for i in &plugin_list{
-            //     i.OnMount(&mut command_dispatcher);
-            // }
+
             demo.OnMount(&mut command_dispatcher);
             cal.OnMount(&mut command_dispatcher);
             app_manager.OnMount(&mut command_dispatcher);

@@ -1,7 +1,7 @@
 use std::vec;
 use tauri::{AppHandle, Runtime, State};
 
-use crate::api::action_runner::ActionRunner;
+use crate::core::action_runner::ActionRunner;
 use crate::api::command_tree::{CommandDispatcher, PluginError};
 use crate::api::extension::Results;
 use crate::api::types::PluginResult;
@@ -34,12 +34,12 @@ pub async fn query<R: Runtime>(
     let mut dispatcher = dispatcher.lock().await;
     if let Some((func, ctx)) = dispatcher.run(input_text) {
         match func(ctx,app) {
-            PluginResult::null=> {
+            PluginResult::Null => {
                 Ok(Results {
                     total_count: 0,
                     items: Vec::new(),
                 })
-            },
+            }
             PluginResult::ExtensionResult(res) => {
                 Ok(Results {
                     total_count: 1,

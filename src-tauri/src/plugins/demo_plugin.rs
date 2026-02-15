@@ -1,7 +1,5 @@
 use crate::api::command_tree::{CommandContext, CommandDispatcher, CommandNode, StringArgument};
 use crate::api::extension::{MetaData, Extension, ExtensionResult, Results};
-use std::any::Any;
-use std::process::Command;
 
 pub struct DemoPlugin {
     pub(crate) info: MetaData,

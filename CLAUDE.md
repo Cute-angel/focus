@@ -111,3 +111,4 @@ Uses commitlint with cz-git for conventional commits with emoji support. Run `np
 - All plugins must be manually registered in `src-tauri/src/lib.rs` setup function
 - File icons are extracted using Windows API and converted to base64 for display
 - Window automatically hides on blur (focus lost) via `TauriEvent.WINDOW_BLUR`
+- development environment is Windows ,don't use unix bash cmd

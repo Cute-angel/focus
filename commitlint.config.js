@@ -77,7 +77,7 @@ export default defineConfig({
     ],
     useEmoji: true,
     emojiAlign: "center",
-    useAI: true,
+    useAI: false,
     aiNumber: 5,
     themeColorCode: "",
     scopes: [],

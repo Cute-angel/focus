@@ -3,7 +3,7 @@
         <query-box class="w-full box-border sticky top-0 z-10 shadow-lg" v-model:cursorPos="cursorPos"
             v-model:query="inputText"></query-box>
 
-        <div class="mt-2 overflow-y-auto max-h-[300px] " v-show="hasResults">
+        <div class="mt-2 overflow-y-auto max-h-[300px] " v-show="hasResults" id="results-scroll" style="scrollbar-width: none;">
             <ul class="flex flex-col box-border" ref="scrollContainer">
                 <li class=" w-full flex-1 " v-for="(result, index) in results">
                     <ResultItem :key="index" :icon="result.icon" :title="result.title" :description="result.description"
@@ -137,12 +137,14 @@ const autoResizeWithObserver = (el: HTMLElement) => {
 onMounted(() => {
     if (mainPage.value) autoResizeWithObserver(mainPage.value)
 
-
-    const webviewwindow: WebviewWindow = getCurrentWebviewWindow();
-    webviewwindow.listen(TauriEvent.WINDOW_BLUR, () => {
-        console.log("hide spotlight window");
-        webviewwindow.hide();
-    })
+    // 只在生产环境监听窗口失焦事件
+    if (import.meta.env.PROD) {
+        const webviewwindow: WebviewWindow = getCurrentWebviewWindow();
+        webviewwindow.listen(TauriEvent.WINDOW_BLUR, () => {
+            console.log("hide spotlight window");
+            webviewwindow.hide();
+        })
+    }
 })
 
 watch(inputText, () => {
