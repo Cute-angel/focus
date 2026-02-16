@@ -1,54 +1,37 @@
+mod plugin_manager;
+mod plugin_worker;
+mod config_helper;
+mod shortcut;
+pub mod action_runner;
+
 use std::collections::HashMap;
-use crate::api::command_tree::Callback;
-use crate::commands::Error;
+use crate::api::command_tree::{Callback, CommandDispatcher};
+use crate::api::extension::Extension;
+use shortcut::ShortcutsDispatcher;
+use crate::core::action_runner::ActionRunner;
 
-pub struct ShortCutDispatcher{
-    store:HashMap<char,Vec<Callback>>,
-    any:Vec<Callback>,
+pub struct Core{
+    extension_lt:Vec<Box<dyn Extension>>,
+    command_dispatcher: CommandDispatcher,
+    shortcut_dispatcher :ShortcutsDispatcher,
+    action_runner:ActionRunner,
 }
 
-impl Default for ShortCutDispatcher {
-    fn default() -> Self {
-        Self {
-            store:HashMap::with_capacity(4),
-            any:Vec::with_capacity(4),
-        }
+
+impl Core {
+
+
+    pub fn get_command_dispatcher(&mut self) -> &mut CommandDispatcher {
+        &mut self.command_dispatcher
     }
-}
 
-impl ShortCutDispatcher {
-
-
-    pub fn add_shortcut(&mut self, shortcut: char, callback: Callback) {
-        if shortcut == '*'{
-            self.any.push(callback);
-        }else if self.store.contains_key(&shortcut){
-            if let Some(callbacks) = self.store.get_mut(&shortcut){
-                callbacks.push(callback);
-            }
-        } else {
-            self.store.insert(shortcut, vec![callback]);
-        }
+    pub fn get_shortcut_dispatcher(&mut self) -> &mut ShortcutsDispatcher {
+        &mut self.shortcut_dispatcher
     }
-    pub fn run(&self, input:&str) ->  Result<Option<&Vec<Callback>>,String> {
-        let input = input.trim();
-        // as trim the first char isn't blank
-        let mut prefix:&str = " ";
-        let mut value:&str;
-
-        let a= input.split_whitespace().collect::<Vec<&str>>();
-        if a.len() == 2{
-            prefix = a[0];
-            value = &a[1];
-            Ok(self.store.get(&prefix.chars().next().unwrap()))
-        } else if a.len() == 1{
-            Ok(Some(self.any.as_ref()))
-        }else {
-            Err(format!("Unknown command: {}", input))
-        }
 
 
-
-
+    pub fn add_extension(mut self, ext: Box<dyn Extension>) -> Self {
+        self.extension_lt.push(ext);
+        self
     }
 }

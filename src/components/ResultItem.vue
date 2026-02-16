@@ -1,6 +1,6 @@
 <template>
-    <div class="flex flex-row hover:glass hover:shadow hover:rounded-field py-0.5"
-        :class="{ 'bg-gray-200/30 shadow rounded-field': isSelect }">
+    <div class="flex flex-row hover:glass hover:shadow hover:rounded-field py-0.5 transition-all"
+        :class="{ 'shadow rounded-field bg-gray-200/30': isSelect }">
 
         <div class="size-8 my-auto">
 

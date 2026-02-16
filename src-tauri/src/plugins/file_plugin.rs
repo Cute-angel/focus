@@ -3,7 +3,7 @@ use std::sync::{Arc, LazyLock, Mutex};
 use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 
-use crate::api::action_runner::{Action, ActionRunner};
+use crate::core::action_runner::{Action, ActionRunner};
 use crate::api::command_tree::{
     Callback, CommandContext, CommandDispatcher, CommandNode, StringArgument,
 };
@@ -69,7 +69,7 @@ impl FilePlugin {
                 //dbg!(&result);
                 result.into()
             } else {
-                PluginResult::null
+                PluginResult::Null
             }
         };
         Box::new(move |ctx, app| -> PluginResult {

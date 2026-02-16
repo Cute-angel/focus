@@ -1,7 +1,8 @@
+use std::process::id;
 use std::vec;
 use tauri::{AppHandle, Runtime, State};
 
-use crate::api::action_runner::ActionRunner;
+use crate::core::action_runner::ActionRunner;
 use crate::api::command_tree::{CommandDispatcher, PluginError};
 use crate::api::extension::Results;
 use crate::api::types::PluginResult;
@@ -25,7 +26,7 @@ impl serde::Serialize for Error {
 
 #[tauri::command]
 pub async fn query<R: Runtime>(
-    app: tauri::AppHandle,
+    app: AppHandle,
     window: tauri::Window<R>,
     input_text: String,
     dispatcher: State<'_, Mutex<CommandDispatcher>>,
@@ -34,12 +35,12 @@ pub async fn query<R: Runtime>(
     let mut dispatcher = dispatcher.lock().await;
     if let Some((func, ctx)) = dispatcher.run(input_text) {
         match func(ctx,app) {
-            PluginResult::null=> {
+            PluginResult::Null => {
                 Ok(Results {
                     total_count: 0,
                     items: Vec::new(),
                 })
-            },
+            }
             PluginResult::ExtensionResult(res) => {
                 Ok(Results {
                     total_count: 1,
@@ -65,7 +66,7 @@ pub async fn query<R: Runtime>(
 
 #[tauri::command]
 pub fn run_action(id: String, val:String, app:AppHandle ) {
-    dbg!("{id}");
+    dbg!(&id);
     let action_runner = ActionRunner::get_instance();
     if let Some(action)=  action_runner.lock().unwrap().get(id.as_ref()){
         action(val,app);

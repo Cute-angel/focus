@@ -3,9 +3,7 @@ use tauri::{App, Manager};
 use tauri_plugin_global_shortcut::ShortcutState;
 
 pub mod command_tree;
-mod config_helper;
 pub mod extension;
-pub mod action_runner;
 pub mod types;
 
 #[cfg(desktop)]

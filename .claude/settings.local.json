@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "mcp__web-reader__webReader",
+      "Bash(if not exist \"d:\\\\ds_project\\\\focus\\\\src\\\\composables\" mkdir \"d:\\\\ds_project\\\\focus\\\\src\\\\composables\")",
+      "Bash(cmd:*)",
+      "Bash(pnpm build:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo test:*)"
+    ]
+  }
+}

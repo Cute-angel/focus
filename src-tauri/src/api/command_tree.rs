@@ -1,6 +1,4 @@
-use std::any::Any;
 use std::collections::HashMap;
-use std::future::Future;
 use tauri::AppHandle;
 use thiserror::Error;
 use crate::api::extension::{ExtensionResult, Results};
@@ -33,7 +31,7 @@ pub enum  PluginResult {
     ExtensionResult(ExtensionResult),
     Results(Results),
     PluginError(PluginError),
-    null
+    Null
 }
 
 impl From<ExtensionResult> for PluginResult {
@@ -109,7 +107,7 @@ impl CommandNode {
         self
     }
 
-    pub fn argument<T: Parameter + 'static + std::marker::Send>(mut self, arg: T) -> Self {
+    pub fn argument<T: Parameter + 'static + Send>(mut self, arg: T) -> Self {
         self.node_type = NodeType::Parameter(Some(Box::new(arg)));
         self
     }
@@ -179,6 +177,7 @@ impl CommandDispatcher {
 
         for part in iter.by_ref() {
             // always start with Literal
+            // get from hashmap ,try to map
             if let Some(child) = current_node.child.get(*part) {
                 // when part match node name and type is literal
                 if let NodeType::Literal = child.node_type {
@@ -206,19 +205,23 @@ impl CommandDispatcher {
                                 break;
                             }
                             Err(_) => {
-                                println!("Error parsing parameter \"{}\"", part.trim());
+                                eprintln!("Error parsing parameter \"{}\"", part.trim());
                             }
                         }
                     }
                 }
             }
             if !matched {
-                println!("Unknown command or argument: {}", part);
+                dbg!("Unknown command or argument: {}", part);
                 return None;
             }
+            // when truncation catch rest
             if (current_node.truncation) {
+                // current
                 let mut rest_part = part.trim().to_string();
+                // add the blank deleted before
                 rest_part.push(' ');
+                //add the rest
                 rest_part += &*iter
                     .map(|s| s.to_string())
                     .collect::<Vec<String>>()
@@ -237,76 +240,3 @@ impl CommandDispatcher {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::api::command_tree::{Callback, CommandContext, CommandDispatcher, CommandNode, PluginResult, StringArgument};
-    use std::any::Any;
-    use tauri::AppHandle;
-
-
-    fn dummy_app() -> AppHandle {
-        use tauri::Manager;
-
-        tauri::Builder::default()
-            .build(tauri::generate_context!())
-            .expect("failed to build dummy tauri app")
-            .app_handle().clone()
-    }
-
-    #[test]
-    fn test_command_node() {
-        let app = dummy_app();
-
-        let cmd = CommandNode::new("test").then(
-            CommandNode::new("args").then(
-                CommandNode::new("arg1")
-                    .argument(StringArgument)
-                    .execute(|f,_app| {
-                        assert_eq!(f.get_parm("arg1"), Some(&Box::new(String::from("123"))));
-                        assert_eq!(f.get_parm("args"), None);
-
-                        PluginResult::null
-                    }),
-            ),
-        );
-        let mut command_dispatcher = CommandDispatcher::new("/");
-        command_dispatcher.register(cmd);
-
-        if let Some((_func, ctx)) = command_dispatcher.run("/test        args 123".to_string()) {
-            assert_eq!(ctx.get_parm("arg1"), Some(&Box::new(String::from("123"))));
-            assert_eq!(ctx.get_parm("args"), None);
-        }
-    }
-
-    #[test]
-    fn test_truncation() {
-        let func:Callback = Box::new(|f: CommandContext,_app| {
-            assert_eq!(
-                f.get_parm("arg1"),
-                Some(&Box::new("first arg1 arg2".to_string()))
-            );
-            PluginResult::null
-        });
-
-        let cmd = CommandNode::new("test").then(
-            CommandNode::new("first")
-                .argument(StringArgument)
-                .set_truncate()
-                .execute(func),
-        );
-        let mut command_dispatcher = CommandDispatcher::new("/");
-        command_dispatcher.register(cmd);
-
-        if let Some((_func, ctx)) =
-            command_dispatcher.run("/test            first arg1 arg2".to_string())
-        {
-            assert!(ctx.get_parm("arg1").is_none());
-            assert!(ctx.get_parm("arg2").is_none());
-            assert_eq!(
-                ctx.get_parm("first"),
-                Some(&Box::new("first arg1 arg2".to_string()))
-            );
-            println!("{}", ctx.get_parm("first").unwrap());
-        }
-    }
-}

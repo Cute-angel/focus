@@ -1,6 +1,102 @@
 @import "tailwindcss";
-@plugin "daisyui";
+@plugin "daisyui" {
+  themes:all;
+}
+
 @plugin "daisyui/theme" {
+  /* 亮色主题 - 适配亚克力透明 */
+  name: "focus-light";
+  default: true;
+  color-scheme: light;
+
+  --color-base-100: oklch(99% 0.01 240);
+  --color-base-200: oklch(95% 0.02 240);
+  --color-base-300: oklch(90% 0.03 240);
+  --color-base-content: oklch(20% 0.05 240);
+
+  --color-primary: oklch(55% 0.22 250);
+  --color-primary-content: oklch(99% 0.01 250);
+
+  --color-secondary: oklch(65% 0.18 180);
+  --color-secondary-content: oklch(99% 0.01 180);
+
+  --color-accent: oklch(60% 0.20 280);
+  --color-accent-content: oklch(99% 0.01 280);
+
+  --color-neutral: oklch(45% 0.05 240);
+  --color-neutral-content: oklch(99% 0.01 240);
+
+  --color-info: oklch(60% 0.18 220);
+  --color-info-content: oklch(99% 0.01 220);
+
+  --color-success: oklch(65% 0.20 150);
+  --color-success-content: oklch(99% 0.01 150);
+
+  --color-warning: oklch(75% 0.18 80);
+  --color-warning-content: oklch(25% 0.05 80);
+
+  --color-error: oklch(60% 0.22 30);
+  --color-error-content: oklch(99% 0.01 30);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+
+  --depth: 0.5;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  /* 暗色主题 - 高对比度 */
+  name: "focus-dark";
+  default: false;
+  color-scheme: dark;
+
+  --color-base-100: oklch(25% 0.02 240);
+  --color-base-200: oklch(30% 0.03 240);
+  --color-base-300: oklch(35% 0.04 240);
+  --color-base-content: oklch(95% 0.01 240);
+
+  --color-primary: oklch(65% 0.24 250);
+  --color-primary-content: oklch(20% 0.02 250);
+
+  --color-secondary: oklch(70% 0.20 180);
+  --color-secondary-content: oklch(20% 0.02 180);
+
+  --color-accent: oklch(68% 0.22 280);
+  --color-accent-content: oklch(20% 0.02 280);
+
+  --color-neutral: oklch(55% 0.08 240);
+  --color-neutral-content: oklch(20% 0.02 240);
+
+  --color-info: oklch(65% 0.18 220);
+  --color-info-content: oklch(20% 0.02 220);
+
+  --color-success: oklch(70% 0.20 150);
+  --color-success-content: oklch(20% 0.02 150);
+
+  --color-warning: oklch(75% 0.18 80);
+  --color-warning-content: oklch(25% 0.05 80);
+
+  --color-error: oklch(65% 0.22 30);
+  --color-error-content: oklch(20% 0.02 30);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+
+  --depth: 1;
+  --noise: 0;
 }
 
 #app {
@@ -10,6 +106,7 @@
 :root {
   background-color: var(--bg-color);
 }
+
 .titlebar {
   height: 30px;
   background: transparent;
@@ -20,4 +117,25 @@
   top: 0;
   left: 0;
   right: 0;
+}
+
+/* 主题特定的 glass 效果 */
+[data-theme="focus-light"] .glass {
+  background-color: oklch(98% 0.01 240 / 0.4);
+  backdrop-filter: blur(8px);
+}
+
+[data-theme="focus-light"] .glass-strong {
+  background-color: oklch(95% 0.02 240 / 0.6);
+  backdrop-filter: blur(12px);
+}
+
+[data-theme="focus-dark"] .glass {
+  background-color: oklch(30% 0.02 240 / 0.5);
+  backdrop-filter: blur(8px);
+}
+
+[data-theme="focus-dark"] .glass-strong {
+  background-color: oklch(35% 0.03 240 / 0.7);
+  backdrop-filter: blur(12px);
 }

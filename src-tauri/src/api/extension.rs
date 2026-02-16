@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use crate::api::command_tree::{CommandDispatcher, CommandNode};
-
+use crate::core::Core;
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct action {
     pub(crate) icon: String,
@@ -61,6 +61,23 @@ pub trait Extension {
     fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher);
 
     fn get_meta_data(&self) -> MetaData;
+    
+    fn on_plugin_load(&self){
+        dbg!("on_plugin_load");
+        
+    }
+    
+    fn on_plugin_unload(&self){
+        dbg!("on_plugin_unload");
+    }
+
+    fn on_core_start(&self , core: &mut Core){
+        dbg!("on_core_start");
+    }
+
+    fn on_core_end(&self, core: &mut Core){
+        dbg!("on_core_end");
+    }
 }
 
 impl PartialOrd for dyn Extension {
@@ -76,3 +93,4 @@ impl PartialEq for dyn Extension {
         self.get_meta_data().id == other.get_meta_data().id
     }
 }
+

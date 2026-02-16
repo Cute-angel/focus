@@ -2,6 +2,7 @@ import { createApp } from "vue";
 import { createWebHistory, createRouter, Router } from "vue-router";
 
 import App from "./App.vue";
+import { useTheme } from './composables/useTheme';
 
 const routes = [
   {
@@ -23,4 +24,11 @@ const router: Router = createRouter({
   routes,
 });
 
-createApp(App).use(router).mount("#app");
+const app = createApp(App);
+app.use(router);
+
+// 初始化主题
+const { setTheme } = useTheme();
+// 默认亮色主题
+
+app.mount("#app");
