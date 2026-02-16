@@ -39,9 +39,9 @@ impl ShortcutsDispatcher {
                 
             }
         }
-        let rest_part = lt.iter().skip(1).collect::<Vec<String>>().join(" ");
+        let rest_part = lt.iter().skip(1).map(|x| x.to_string()).collect::<Vec<_>>().join(" ");
         self.run_any_shortcut(&rest_part);
-        self.run_fixed_shortcut();
+        //self.run_fixed_shortcut();
         
     }
     

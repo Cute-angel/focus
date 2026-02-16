@@ -1,3 +1,4 @@
+use std::process::id;
 use std::vec;
 use tauri::{AppHandle, Runtime, State};
 
@@ -25,7 +26,7 @@ impl serde::Serialize for Error {
 
 #[tauri::command]
 pub async fn query<R: Runtime>(
-    app: tauri::AppHandle,
+    app: AppHandle,
     window: tauri::Window<R>,
     input_text: String,
     dispatcher: State<'_, Mutex<CommandDispatcher>>,
@@ -65,7 +66,7 @@ pub async fn query<R: Runtime>(
 
 #[tauri::command]
 pub fn run_action(id: String, val:String, app:AppHandle ) {
-    dbg!("{id}");
+    dbg!(&id);
     let action_runner = ActionRunner::get_instance();
     if let Some(action)=  action_runner.lock().unwrap().get(id.as_ref()){
         action(val,app);

@@ -1,18 +1,27 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, mpsc};
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
 use serde::{Serialize, de::DeserializeOwned};
 use tauri::Manager;
 use crate::APP_HANDLE;
 
 const CONFIG_FILE: &str = "settings.toml";
+const AUTO_SAVE_INTERVAL: Duration = Duration::from_secs(600);
 
 /// 配置管理器，使用 TOML 格式存储配置
 pub struct ConfigHelper {
     path: PathBuf,
-    configs: HashMap<String, toml::Value>,
-    dirty: bool,
+    configs: Arc<Mutex<HashMap<String, toml::Value>>>,
+    dirty: Arc<AtomicBool>,
+    auto_save_interval: Duration,
+    stop_tx: Option<mpsc::Sender<()>>,
+    worker: Option<JoinHandle<()>>,
 }
+
 
 
 
@@ -22,23 +31,26 @@ impl Default for ConfigHelper {
         let path = base_dir.join(CONFIG_FILE);
         let mut instance = Self {
             path,
-            configs: HashMap::new(),
-            dirty: false,
+            configs: Arc::new(Mutex::new(HashMap::new())),
+            dirty: Arc::new(AtomicBool::new(false)),
+            auto_save_interval: AUTO_SAVE_INTERVAL,
+            stop_tx: None,
+            worker: None,
         };
-        instance.load();
+
+        instance.start_auto_save_worker();
         instance
     }
 }
 
-impl Drop for ConfigHelper {
-    fn drop(&mut self) {
-        if self.dirty {
-            let _ = self.save();
-        }
-    }
-}
-
 impl ConfigHelper {
+    /// 设置自动保存间隔（后台定时保存）
+    pub fn set_auto_save_interval(&mut self, interval: Duration) {
+        self.auto_save_interval = interval;
+        self.stop_auto_save_worker();
+        self.start_auto_save_worker();
+    }
+
     /// 从文件加载配置
     pub fn load(&mut self) {
         if !self.path.exists() {
@@ -48,7 +60,8 @@ impl ConfigHelper {
         match fs::read_to_string(&self.path) {
             Ok(content) => {
                 if let Ok(toml_value) = content.parse::<toml::Value>() {
-                    self.parse_toml_value(String::new(), &toml_value);
+                    let mut map = self.configs.lock().unwrap();
+                    Self::parse_toml_value(&mut map, String::new(), &toml_value);
                 }
             }
             Err(e) => {
@@ -58,7 +71,7 @@ impl ConfigHelper {
     }
 
     /// 递归解析 TOML 值并存储到 configs HashMap
-    fn parse_toml_value(&mut self, prefix: String, value: &toml::Value) {
+    fn parse_toml_value(configs: &mut HashMap<String, toml::Value>, prefix: String, value: &toml::Value) {
         match value {
             toml::Value::Table(table) => {
                 for (key, val) in table {
@@ -71,52 +84,36 @@ impl ConfigHelper {
                     match val {
                         toml::Value::Table(_) => {
                             // 嵌套表，继续递归
-                            self.parse_toml_value(new_key, val);
+                            Self::parse_toml_value(configs, new_key, val);
                         }
                         _ => {
                             // 叶子节点，直接克隆存储
-                            self.configs.insert(new_key, val.clone());
+                            configs.insert(new_key, val.clone());
                         }
                     }
                 }
             }
             _ => {
                 // 顶层非表值
-                self.configs.insert(prefix, value.clone());
+                configs.insert(prefix, value.clone());
             }
         }
     }
 
     /// 保存配置到磁盘
     pub fn save(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        if !self.dirty {
+        if !self.dirty.swap(false, Ordering::AcqRel) {
             return Ok(());
         }
-
-        // 构建 TOML 结构
-        let mut toml_map = toml::value::Table::new();
-
-        for (key, value) in &self.configs {
-            // 解析点分隔的命名空间
-            let parts: Vec<&str> = key.split('.').collect();
-            self.insert_nested(&mut toml_map, &parts, value.clone());
+        if let Err(e) = Self::write_snapshot(&self.path, &self.configs) {
+            self.dirty.store(true, Ordering::Release);
+            return Err(e);
         }
-
-        // 确保目录存在
-        if let Some(parent) = self.path.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
-
-        // 写入文件
-        let content = toml::to_string_pretty(&toml_map)?;
-        fs::write(&self.path, content)?;
-
-        self.dirty = false;
         Ok(())
     }
 
     /// 将值插入嵌套的 TOML 表结构，用于构建Table
-    fn insert_nested(&self, table: &mut toml::value::Table, parts: &[&str], value: toml::Value) {
+    fn insert_nested(table: &mut toml::value::Table, parts: &[&str], value: toml::Value) {
         if parts.len() == 1 {
             table.insert(parts[0].to_string(), value);
         } else if parts.len() > 1 {
@@ -128,7 +125,7 @@ impl ConfigHelper {
             }
 
             if let Some(toml::Value::Table(nested)) = table.get_mut(&next) {
-                self.insert_nested(nested, rest, value);
+                Self::insert_nested(nested, rest, value);
             }
         }
     }
@@ -140,7 +137,8 @@ impl ConfigHelper {
         T: Serialize + DeserializeOwned,
     {
         // 先尝试直接获取叶子节点
-        if let Some(v) = self.configs.get(namespace) {
+        let map = self.configs.lock().unwrap();
+        if let Some(v) = map.get(namespace) {
             if let Ok(parsed) = v.clone().try_into() {
                 return parsed;
             }
@@ -154,11 +152,11 @@ impl ConfigHelper {
         };
 
         let mut table = toml::value::Table::new();
-        for (key, value) in &self.configs {
+        for (key, value) in map.iter() {
             if key.starts_with(&prefix) {
                 // 获取相对路径并构建嵌套结构
                 let rest = &key[prefix.len()..];
-                self.insert_nested(&mut table, &rest.split('.').collect::<Vec<_>>(), value.clone());
+                Self::insert_nested(&mut table, &rest.split('.').collect::<Vec<_>>(), value.clone());
             }
         }
 
@@ -178,21 +176,23 @@ impl ConfigHelper {
         T: Serialize,
     {
         let toml_value = toml::Value::try_from(value)?;
-        self.configs.insert(namespace.to_string(), toml_value);
-        self.dirty = true;
+        let mut map = self.configs.lock().unwrap();
+        map.insert(namespace.to_string(), toml_value);
+        self.dirty.store(true, Ordering::Release);
         Ok(())
 
     }
 
     /// 直接设置 TOML 值（用于复杂类型）
     pub fn set_raw_value(&mut self, namespace: &str, value: toml::Value) {
-        self.configs.insert(namespace.to_string(), value);
-        self.dirty = true;
+        let mut map = self.configs.lock().unwrap();
+        map.insert(namespace.to_string(), value);
+        self.dirty.store(true, Ordering::Release);
     }
 
     /// 获取原始 TOML 值
-    pub fn get_raw_value(&self, namespace: &str) -> Option<&toml::Value> {
-        self.configs.get(namespace)
+    pub fn get_raw_value(&self, namespace: &str) -> Option<toml::Value> {
+        self.configs.lock().unwrap().get(namespace).cloned()
     }
 
     /// 获取配置文件路径
@@ -200,15 +200,89 @@ impl ConfigHelper {
         &self.path
     }
 
+    fn start_auto_save_worker(&mut self) {
+        let (tx, rx) = mpsc::channel::<()>();
+        let path = self.path.clone();
+        let configs = Arc::clone(&self.configs);
+        let dirty = Arc::clone(&self.dirty);
+        let interval = self.auto_save_interval;
+
+        let worker = thread::spawn(move || {
+            loop {
+                if rx.recv_timeout(interval).is_ok() {
+                    break;
+                }
+
+                if !dirty.swap(false, Ordering::AcqRel) {
+                    continue;
+                }
+
+                if let Err(e) = Self::write_snapshot(&path, &configs) {
+                    dirty.store(true, Ordering::Release);
+                    eprintln!("Failed to auto-save config: {}", e);
+                }
+            }
+        });
+
+        self.stop_tx = Some(tx);
+        self.worker = Some(worker);
+    }
+
+    fn stop_auto_save_worker(&mut self) {
+        if let Some(tx) = self.stop_tx.take() {
+            let _ = tx.send(());
+        }
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+
+    fn write_snapshot(
+        path: &Path,
+        configs: &Arc<Mutex<HashMap<String, toml::Value>>>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut toml_map = toml::value::Table::new();
+        let map = configs.lock().unwrap();
+
+        for (key, value) in map.iter() {
+            let parts: Vec<&str> = key.split('.').collect();
+            Self::insert_nested(&mut toml_map, &parts, value.clone());
+        }
+
+        if let Some(parent) = path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+
+        let content = toml::to_string_pretty(&toml_map)?;
+        fs::write(path, content)?;
+        Ok(())
+    }
+
+
     #[cfg(test)]
     fn with_path(path: PathBuf) -> Self {
-        Self {
+        let mut instance = Self {
             path,
-            configs: HashMap::new(),
-            dirty: false,
+            configs: Arc::new(Mutex::new(HashMap::new())),
+            dirty: Arc::new(AtomicBool::new(false)),
+            auto_save_interval: AUTO_SAVE_INTERVAL,
+            stop_tx: None,
+            worker: None,
+        };
+        instance.start_auto_save_worker();
+        instance
+    }
+}
+
+impl Drop for ConfigHelper {
+    fn drop(&mut self) {
+        self.stop_auto_save_worker();
+        if self.dirty.load(Ordering::Acquire) {
+            let _ = self.save();
         }
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -386,5 +460,19 @@ mod tests {
         assert_eq!(window.title, "Main Window");
         assert_eq!(window.position.x, 100);
         assert_eq!(window.size.width, 800);
+    }
+
+    #[test]
+    fn test_auto_save_by_timer() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("test.toml");
+        let mut helper = ConfigHelper::with_path(path.clone());
+
+        helper.set_auto_save_interval(Duration::from_millis(50));
+        helper.set_value("auto.key", "saved".to_string()).unwrap();
+        thread::sleep(Duration::from_millis(120));
+
+        let content = fs::read_to_string(&path).unwrap();
+        assert!(content.contains("saved"));
     }
 }

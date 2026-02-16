@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use serde::forward_to_deserialize_any;
 use tauri::AppHandle;
 use thiserror::Error;
 use crate::api::extension::{ExtensionResult, Results};

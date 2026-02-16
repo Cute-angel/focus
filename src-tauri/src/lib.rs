@@ -1,6 +1,3 @@
-#![feature(bool_to_result)]#![feature(bool_to_result)]// Learn more about Tauri commands at https://taur
-i.app/develop/calling-rust/
-
 
 use std::sync::{Arc, OnceLock};
 use crate::api::command_tree::CommandDispatcher;
