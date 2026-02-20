@@ -1,5 +1,6 @@
 use crate::api::command_tree::{CommandContext, CommandDispatcher, CommandNode, StringArgument};
 use crate::api::extension::{MetaData, Extension, ExtensionResult, Results};
+use crate::core::Core;
 
 pub struct DemoPlugin {
     pub(crate) info: MetaData,
@@ -14,7 +15,13 @@ impl Default for DemoPlugin {
 }
 
 impl Extension for DemoPlugin {
-    fn OnMount(&self, command_dispatcher: &mut CommandDispatcher) {
+
+
+    fn get_meta_data(&self) -> MetaData {
+        self.info.clone()
+    }
+
+    fn on_plugin_load(&self, core: &mut Core) {
         let func = |ctx: CommandContext,_| {
             let str1 = String::from("this is a demo plugins");
 
@@ -36,15 +43,9 @@ impl Extension for DemoPlugin {
                     .execute(func),
             ),
         );
+        core.get_command_dispatcher().register(
+            command
+        );
 
-        command_dispatcher.register(command);
-    }
-
-    fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher) {
-        todo!()
-    }
-
-    fn get_meta_data(&self) -> MetaData {
-        self.info.clone()
     }
 }

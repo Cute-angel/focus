@@ -17,6 +17,14 @@ pub struct Shortcut {
 
 }
 
+impl Shortcut {
+
+}
+
+
+pub struct ShortcutResult{
+
+}
 
 /// match rule:
 /// accurate match > any 
@@ -66,7 +74,11 @@ impl ShortcutsDispatcher {
     }
     
     fn run_any_shortcut(&self, text:&str)  {
-        todo!()
+        for shortcut in self.any_type_shortcut.iter() {
+            if let ShortcutKey::Any(func) = shortcut.target {
+                let weight = func(text.to_string());
+            }
+        }
     }
     
     fn run_fixed_shortcut(&self, shortcut: Shortcut) -> Result<(),ShortCutError> {

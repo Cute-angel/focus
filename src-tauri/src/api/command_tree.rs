@@ -15,7 +15,7 @@ pub trait Parameter {
 
 pub enum NodeType {
     Literal,
-    Parameter(Option<Box<dyn Parameter + Send>>),
+    Parameter(Option<Box<dyn Parameter + Send + Sync>>),
 }
 
 pub struct StringArgument;
@@ -54,7 +54,7 @@ impl From<PluginError> for PluginResult {
 }
 
 pub type Callback =
-Box<dyn Fn(CommandContext, AppHandle) -> PluginResult + Send >;
+Box<dyn Fn(CommandContext, AppHandle) -> PluginResult + Send + Sync>;
 
 
 
@@ -96,7 +96,7 @@ impl CommandNode {
     }
 
     pub fn execute<F>(mut self, f: F) -> Self
-    where F: Fn(CommandContext, AppHandle) -> PluginResult + Send + 'static
+    where F: Fn(CommandContext, AppHandle) -> PluginResult + Send + Sync + 'static
     {
         self.execute = Some(Box::new(f));
         self
@@ -107,7 +107,7 @@ impl CommandNode {
         self
     }
 
-    pub fn argument<T: Parameter + 'static + Send>(mut self, arg: T) -> Self {
+    pub fn argument<T: Parameter + 'static + Send + Sync>(mut self, arg: T) -> Self {
         self.node_type = NodeType::Parameter(Some(Box::new(arg)));
         self
     }
@@ -140,9 +140,9 @@ pub struct CommandDispatcher {
 }
 
 impl CommandDispatcher {
-    pub fn new(prefix: &str) -> Self {
+    pub fn new(prefix: String) -> Self {
         Self {
-            root: CommandNode::new(prefix),
+            root: CommandNode::new(prefix.as_str()),
         }
     }
 
@@ -216,7 +216,7 @@ impl CommandDispatcher {
                 return None;
             }
             // when truncation catch rest
-            if (current_node.truncation) {
+            if current_node.truncation {
                 // current
                 let mut rest_part = part.trim().to_string();
                 // add the blank deleted before

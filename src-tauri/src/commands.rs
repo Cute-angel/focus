@@ -1,12 +1,8 @@
-use std::process::id;
-use std::vec;
-use tauri::{AppHandle, Runtime, State};
+use tauri::{AppHandle, Runtime};
 
-use crate::core::action_runner::ActionRunner;
-use crate::api::command_tree::{CommandDispatcher, PluginError};
+use crate::api::command_tree::PluginError;
 use crate::api::extension::Results;
-use crate::api::types::PluginResult;
-use tauri::async_runtime::Mutex;
+use crate::core::Core;
 
 // 创建在我们程序中可能发生的所有错误
 #[derive(Debug, thiserror::Error)]
@@ -29,46 +25,16 @@ pub async fn query<R: Runtime>(
     app: AppHandle,
     window: tauri::Window<R>,
     input_text: String,
-    dispatcher: State<'_, Mutex<CommandDispatcher>>,
 ) -> Result<Results, Error> {
-
-    let mut dispatcher = dispatcher.lock().await;
-    if let Some((func, ctx)) = dispatcher.run(input_text) {
-        match func(ctx,app) {
-            PluginResult::Null => {
-                Ok(Results {
-                    total_count: 0,
-                    items: Vec::new(),
-                })
-            }
-            PluginResult::ExtensionResult(res) => {
-                Ok(Results {
-                    total_count: 1,
-                    items: vec![res.clone()],
-                })
-            }
-            PluginResult::Results(res) => {
-                Ok(res.clone())
-            }
-            PluginResult::PluginError(err) => {
-                Err(Error::Plugin(err))
-            }
-        }
-
-
-    } else {
-        Ok(Results {
-            total_count: 0,
-            items: Vec::new(),
-        })
-    }
+    dbg!(&input_text);
+    Core::get_instance().handle_query(input_text.as_str(),app).await
 }
 
 #[tauri::command]
 pub fn run_action(id: String, val:String, app:AppHandle ) {
     dbg!(&id);
-    let action_runner = ActionRunner::get_instance();
-    if let Some(action)=  action_runner.lock().unwrap().get(id.as_ref()){
+    let action_runner = Core::get_instance().get_action_runner();
+    if let Some(action)=  action_runner.get(id.as_ref()){
         action(val,app);
     }
 }

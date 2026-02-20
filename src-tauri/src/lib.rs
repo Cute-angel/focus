@@ -1,17 +1,10 @@
 
 use std::sync::{Arc, OnceLock};
-use crate::api::command_tree::CommandDispatcher;
-use crate::api::extension::Extension;
-use crate::plugins::CalculatorPlugin;
-use crate::plugins::DemoPlugin;
-use tauri::async_runtime::Mutex;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager};
 use crate::commands::{query, run_action};
-use crate::plugins::AppPlugin;
-use crate::plugins::FilePlugin;
-use crate::plugins::LauncherPlugin;
+use crate::core::Core;
 mod api;
 mod commands;
 mod plugins;
@@ -47,7 +40,7 @@ pub fn run() {
 
             let menu = Menu::with_items(app, &[&quit_i, &hide_i,&open_query_page])?;
 
-            let tray = TrayIconBuilder::new()
+            let _ = TrayIconBuilder::new()
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
@@ -78,25 +71,13 @@ pub fn run() {
             }
 
 
-            // command_dispatcher
-            let mut command_dispatcher = CommandDispatcher::new("/");
-            let demo = DemoPlugin::default();
-            let cal = CalculatorPlugin::default();
-            let app_manager = AppPlugin::default();
-            let file = FilePlugin::default();
-            let launcher = LauncherPlugin::default();
-            let _ = launcher.init();
-
-
-            demo.OnMount(&mut command_dispatcher);
-            cal.OnMount(&mut command_dispatcher);
-            app_manager.OnMount(&mut command_dispatcher);
-            file.OnMount(&mut command_dispatcher);
-            launcher.OnMount(&mut command_dispatcher);
-
-            app.manage(Mutex::new(command_dispatcher));
 
             APP_HANDLE.set(Arc::new(app.handle().clone())).ok();
+
+            // core
+            let  _core = Core::new();
+            Core::get_instance().init();
+
             Ok(())
         })
 

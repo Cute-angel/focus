@@ -13,6 +13,7 @@ use crate::utils::to_base64;
 use crate::utils::IconExtractor;
 use futures::executor::block_on;
 use crate::api::types::PluginResult;
+use crate::core::Core;
 
 pub struct FilePlugin {}
 
@@ -99,21 +100,18 @@ impl FilePlugin {
 }
 
 impl Extension for FilePlugin {
-    fn OnMount(&self, command_dispatcher: &mut CommandDispatcher) {
-        command_dispatcher.register(self.get_nodes());
-
-        let action_runner = ActionRunner::get_instance();
-        action_runner
-            .lock()
-            .unwrap()
-            .add("file_plugin_runner", self.get_action());
-    }
-
-    fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher) {
-        todo!()
-    }
-
+    
     fn get_meta_data(&self) -> MetaData {
         MetaData::default_builder("FileSearcher").build()
     }
+
+
+    fn on_plugin_load(&self, core: &mut Core) {
+        let command_dispatcher = core.get_command_dispatcher();
+        command_dispatcher.register(self.get_nodes());
+
+        let action_runner = core.get_action_runner();
+        action_runner.add("file_plugin_runner", self.get_action());
+    }
+    
 }

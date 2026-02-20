@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{Arc, Mutex};
 use tauri::AppHandle;
 
 pub type Action = Box<dyn Fn(String,AppHandle) + Send + Sync + 'static>;
@@ -31,9 +31,5 @@ impl ActionRunner {
         self.val.get(key)
     }
 
-    pub fn get_instance() -> &'static ArcMutex<ActionRunner> {
-        &*ACTION_RUNNER
-    }
+    
 }
-
-pub static  ACTION_RUNNER:LazyLock<ArcMutex<ActionRunner>> = LazyLock::new(||Arc::new(Mutex::new( ActionRunner::new())));

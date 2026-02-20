@@ -1,6 +1,6 @@
-use std::cmp::Ordering;
-use crate::api::command_tree::{CommandDispatcher, CommandNode};
+use crate::api::command_tree::CommandDispatcher;
 use crate::core::Core;
+use std::cmp::Ordering;
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct action {
     pub(crate) icon: String,
@@ -55,14 +55,11 @@ impl MetaData {
 
 }
 
-pub trait Extension {
-    fn OnMount(&self, command_dispatcher: &mut CommandDispatcher);
-
-    fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher);
-
+pub trait Extension: Send + Sync {
+    
     fn get_meta_data(&self) -> MetaData;
     
-    fn on_plugin_load(&self){
+    fn on_plugin_load(&self,core: &mut Core){
         dbg!("on_plugin_load");
         
     }

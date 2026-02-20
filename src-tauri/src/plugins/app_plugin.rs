@@ -1,8 +1,8 @@
-use std::any::Any;
-use tauri::AppHandle;
-use crate::core::action_runner::{Action, ActionRunner, ACTION_RUNNER};
 use crate::api::command_tree::{CommandContext, CommandDispatcher, CommandNode};
 use crate::api::extension::{action, Extension, ExtensionResult, MetaData, Results};
+use crate::core::action_runner::{Action,};
+use crate::core::Core;
+use tauri::AppHandle;
 
 #[derive(Default)]
 pub struct AppPlugin {}
@@ -88,24 +88,20 @@ impl AppPlugin {
 
 impl Extension for AppPlugin {
 
-
-    fn OnMount(&self, command_dispatcher: &mut CommandDispatcher) {
-        command_dispatcher.register(
-            self.get_commands()
-        );
-
-        let action_runner = ActionRunner::get_instance();
-        action_runner.lock().unwrap().add("app_manager",self.get_plugin_action());
-
-    }
+    
 
     fn get_meta_data(&self) -> MetaData {
         MetaData::default_builder("Manager").set_priority(10).build()
     }
 
-
-
-    fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher) {
-        todo!()
+    fn on_plugin_load(&self, core: &mut Core) {
+        core.get_command_dispatcher().register(
+            self.get_commands()
+        );
+        core.get_action_runner().add(
+            "app_manager",self.get_plugin_action()
+        );
     }
+
+
 }

@@ -1,6 +1,8 @@
-use crate::core::action_runner::{Action, ActionRunner};
 use crate::api::command_tree::{Callback, CommandContext, CommandDispatcher, CommandNode, StringArgument};
 use crate::api::extension::{action, Extension, ExtensionResult, MetaData, Results};
+use crate::api::types::PluginResult;
+use crate::core::action_runner::Action;
+use crate::core::Core;
 use crate::utils::{to_base64, IconExtractor};
 use lnk_parser::LNKParser;
 use pinyin::ToPinyin;
@@ -12,7 +14,6 @@ use std::thread;
 use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 use walkdir::WalkDir;
-use crate::api::types::PluginResult;
 
 static SEARCH_TABLE:LazyLock<Arc<Mutex<HashMap<String,Program>>>> = LazyLock::new(
     || Arc::new(Mutex::new(HashMap::new()))
@@ -286,20 +287,20 @@ impl LauncherPlugin {
 
 
 impl Extension for LauncherPlugin {
-    fn OnMount(&self, command_dispatcher: &mut CommandDispatcher) {
-        command_dispatcher.register(
-            self.get_node()
-        );
 
-        let action_runner = ActionRunner::get_instance();
-        action_runner.lock().unwrap().add("launcher",self.get_action());
-    }
-
-    fn OnUnmount(&self, command_dispatcher: &mut CommandDispatcher) {
-        todo!()
-    }
 
     fn get_meta_data(&self) -> MetaData {
         MetaData::default_builder("AppLauncher").set_version("1.0.0").set_priority(200).build()
+    }
+
+    fn on_plugin_load(&self,core: &mut Core) {
+        self.init();
+        core.get_command_dispatcher().register(
+            self.get_node()
+        );
+        core.get_action_runner().add(
+            "launcher",
+            self.get_action(),
+        );
     }
 }
