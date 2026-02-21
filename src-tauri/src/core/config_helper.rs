@@ -1,13 +1,13 @@
+use crate::APP_HANDLE;
+use serde::{de::DeserializeOwned, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-use serde::{Serialize, de::DeserializeOwned};
 use tauri::Manager;
-use crate::APP_HANDLE;
 
 const CONFIG_FILE: &str = "settings.toml";
 const AUTO_SAVE_INTERVAL: Duration = Duration::from_secs(600);
@@ -21,9 +21,6 @@ pub struct ConfigHelper {
     stop_tx: Option<mpsc::Sender<()>>,
     worker: Option<JoinHandle<()>>,
 }
-
-
-
 
 impl Default for ConfigHelper {
     fn default() -> Self {
@@ -71,7 +68,11 @@ impl ConfigHelper {
     }
 
     /// 递归解析 TOML 值并存储到 configs HashMap
-    fn parse_toml_value(configs: &mut HashMap<String, toml::Value>, prefix: String, value: &toml::Value) {
+    fn parse_toml_value(
+        configs: &mut HashMap<String, toml::Value>,
+        prefix: String,
+        value: &toml::Value,
+    ) {
         match value {
             toml::Value::Table(table) => {
                 for (key, val) in table {
@@ -156,7 +157,11 @@ impl ConfigHelper {
             if key.starts_with(&prefix) {
                 // 获取相对路径并构建嵌套结构
                 let rest = &key[prefix.len()..];
-                Self::insert_nested(&mut table, &rest.split('.').collect::<Vec<_>>(), value.clone());
+                Self::insert_nested(
+                    &mut table,
+                    &rest.split('.').collect::<Vec<_>>(),
+                    value.clone(),
+                );
             }
         }
 
@@ -171,7 +176,11 @@ impl ConfigHelper {
     }
 
     /// 设置配置值
-    pub fn set_value<T>(&mut self, namespace: &str, value: T) -> Result<(), Box<dyn std::error::Error>>
+    pub fn set_value<T>(
+        &mut self,
+        namespace: &str,
+        value: T,
+    ) -> Result<(), Box<dyn std::error::Error>>
     where
         T: Serialize,
     {
@@ -180,7 +189,6 @@ impl ConfigHelper {
         map.insert(namespace.to_string(), toml_value);
         self.dirty.store(true, Ordering::Release);
         Ok(())
-
     }
 
     /// 直接设置 TOML 值（用于复杂类型）
@@ -207,20 +215,18 @@ impl ConfigHelper {
         let dirty = Arc::clone(&self.dirty);
         let interval = self.auto_save_interval;
 
-        let worker = thread::spawn(move || {
-            loop {
-                if rx.recv_timeout(interval).is_ok() {
-                    break;
-                }
+        let worker = thread::spawn(move || loop {
+            if rx.recv_timeout(interval).is_ok() {
+                break;
+            }
 
-                if !dirty.swap(false, Ordering::AcqRel) {
-                    continue;
-                }
+            if !dirty.swap(false, Ordering::AcqRel) {
+                continue;
+            }
 
-                if let Err(e) = Self::write_snapshot(&path, &configs) {
-                    dirty.store(true, Ordering::Release);
-                    eprintln!("Failed to auto-save config: {}", e);
-                }
+            if let Err(e) = Self::write_snapshot(&path, &configs) {
+                dirty.store(true, Ordering::Release);
+                eprintln!("Failed to auto-save config: {}", e);
             }
         });
 
@@ -258,7 +264,6 @@ impl ConfigHelper {
         Ok(())
     }
 
-
     #[cfg(test)]
     fn with_path(path: PathBuf) -> Self {
         let mut instance = Self {
@@ -282,7 +287,6 @@ impl Drop for ConfigHelper {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -343,11 +347,14 @@ mod tests {
         };
         helper.set_value("theme.custom", theme.clone());
 
-        let loaded: ThemeConfig = helper.get_value("theme.custom", ThemeConfig {
-            background: "#000000".to_string(),
-            foreground: "#000000".to_string(),
-            font_size: 12,
-        });
+        let loaded: ThemeConfig = helper.get_value(
+            "theme.custom",
+            ThemeConfig {
+                background: "#000000".to_string(),
+                foreground: "#000000".to_string(),
+                font_size: 12,
+            },
+        );
 
         assert_eq!(loaded.background, "#1a1a1a");
         assert_eq!(loaded.foreground, "#ffffff");
@@ -361,7 +368,8 @@ mod tests {
         helper.set_value("test.name", "test".to_string());
         helper.set_value("test.count", 42i64);
 
-        let test_obj: toml::Value = helper.get_value("test", toml::Value::Table(toml::value::Table::new()));
+        let test_obj: toml::Value =
+            helper.get_value("test", toml::Value::Table(toml::value::Table::new()));
         assert!(test_obj.is_table());
 
         let table = test_obj.as_table().unwrap();
@@ -386,11 +394,14 @@ mod tests {
         helper.set_value("test.name", "test".to_string());
         helper.set_value("test.count", 42i64);
 
-        let test_config: TestConfig = helper.get_value("test", TestConfig {
-            key: "default".to_string(),
-            name: "default".to_string(),
-            count: 0,
-        });
+        let test_config: TestConfig = helper.get_value(
+            "test",
+            TestConfig {
+                key: "default".to_string(),
+                name: "default".to_string(),
+                count: 0,
+            },
+        );
 
         assert_eq!(test_config.key, "value");
         assert_eq!(test_config.name, "test");
@@ -435,14 +446,20 @@ mod tests {
         helper.set_value("app.window.size.width", 800u32);
         helper.set_value("app.window.size.height", 600u32);
 
-        let config: AppConfig = helper.get_value("app", AppConfig {
-            name: "default".to_string(),
-            window: WindowConfig {
-                title: "default".to_string(),
-                position: Position { x: 0, y: 0 },
-                size: Size { width: 0, height: 0 },
+        let config: AppConfig = helper.get_value(
+            "app",
+            AppConfig {
+                name: "default".to_string(),
+                window: WindowConfig {
+                    title: "default".to_string(),
+                    position: Position { x: 0, y: 0 },
+                    size: Size {
+                        width: 0,
+                        height: 0,
+                    },
+                },
             },
-        });
+        );
 
         assert_eq!(config.name, "Focus");
         assert_eq!(config.window.title, "Main Window");
@@ -451,11 +468,17 @@ mod tests {
         assert_eq!(config.window.size.width, 800);
         assert_eq!(config.window.size.height, 600);
 
-        let window: WindowConfig = helper.get_value("app.window", WindowConfig {
-            title: "default".to_string(),
-            position: Position { x: 0, y: 0 },
-            size: Size { width: 0, height: 0 },
-        });
+        let window: WindowConfig = helper.get_value(
+            "app.window",
+            WindowConfig {
+                title: "default".to_string(),
+                position: Position { x: 0, y: 0 },
+                size: Size {
+                    width: 0,
+                    height: 0,
+                },
+            },
+        );
 
         assert_eq!(window.title, "Main Window");
         assert_eq!(window.position.x, 100);

@@ -1,12 +1,12 @@
+use crate::api::extension::{ExtensionResult, Results};
 use std::collections::HashMap;
 use tauri::AppHandle;
 use thiserror::Error;
-use crate::api::extension::{ExtensionResult, Results};
 
 #[derive(Debug, Error)]
-pub enum  PluginError{
+pub enum PluginError {
     #[error("{0}:{1}")]
-    Error(String,String),
+    Error(String, String),
 }
 
 pub trait Parameter {
@@ -26,12 +26,11 @@ impl Parameter for StringArgument {
     }
 }
 
-
-pub enum  PluginResult {
+pub enum PluginResult {
     ExtensionResult(ExtensionResult),
     Results(Results),
     PluginError(PluginError),
-    Null
+    Null,
 }
 
 impl From<ExtensionResult> for PluginResult {
@@ -46,17 +45,13 @@ impl From<Results> for PluginResult {
     }
 }
 
-
 impl From<PluginError> for PluginResult {
     fn from(error: PluginError) -> Self {
         PluginResult::PluginError(error)
     }
 }
 
-pub type Callback =
-Box<dyn Fn(CommandContext, AppHandle) -> PluginResult + Send + Sync>;
-
-
+pub type Callback = Box<dyn Fn(CommandContext, AppHandle) -> PluginResult + Send + Sync>;
 
 pub struct CommandNode {
     pub name: String,
@@ -79,7 +74,7 @@ impl Default for CommandNode {
 }
 
 impl CommandNode {
-    pub fn new(name: &str) -> Self {
+    pub fn new(name: impl ToString) -> Self {
         Self {
             name: name.to_string(),
             child: HashMap::new(),
@@ -96,7 +91,8 @@ impl CommandNode {
     }
 
     pub fn execute<F>(mut self, f: F) -> Self
-    where F: Fn(CommandContext, AppHandle) -> PluginResult + Send + Sync + 'static
+    where
+        F: Fn(CommandContext, AppHandle) -> PluginResult + Send + Sync + 'static,
     {
         self.execute = Some(Box::new(f));
         self
@@ -150,13 +146,8 @@ impl CommandDispatcher {
         self.root.child.insert(child.name.clone(), child);
     }
 
-    pub fn run(
-        &mut self,
-        input: String,
-    ) -> Option<(
-        &Callback,
-        CommandContext,
-    )> {
+    pub fn run(&mut self, input: impl Into<String>) -> Option<(&Callback, CommandContext)> {
+        let input:String = input.into();
         let command_content;
         // cut the prefix and match if the input start with prefix
         if let Some(input) = input.strip_prefix(&self.root.name) {
@@ -239,4 +230,3 @@ impl CommandDispatcher {
         }
     }
 }
-

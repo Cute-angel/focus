@@ -1,5 +1,5 @@
 use crate::api::command_tree::{CommandContext, CommandDispatcher, CommandNode, StringArgument};
-use crate::api::extension::{MetaData, Extension, ExtensionResult, Results};
+use crate::api::extension::{Extension, ExtensionResult, MetaData, Results};
 use crate::core::Core;
 
 pub struct DemoPlugin {
@@ -15,14 +15,12 @@ impl Default for DemoPlugin {
 }
 
 impl Extension for DemoPlugin {
-
-
     fn get_meta_data(&self) -> MetaData {
         self.info.clone()
     }
 
     fn on_plugin_load(&self, core: &mut Core) {
-        let func = |ctx: CommandContext,_| {
+        let func = |ctx: CommandContext, _| {
             let str1 = String::from("this is a demo plugins");
 
             let res = ExtensionResult {
@@ -43,9 +41,6 @@ impl Extension for DemoPlugin {
                     .execute(func),
             ),
         );
-        core.get_command_dispatcher().register(
-            command
-        );
-
+        core.get_command_dispatcher().register(command);
     }
 }

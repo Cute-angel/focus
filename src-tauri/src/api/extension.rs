@@ -6,7 +6,7 @@ pub struct action {
     pub(crate) icon: String,
     pub(crate) tooltip: String,
     pub(crate) value: String,
-    pub(crate) id:String,
+    pub(crate) id: String,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -17,7 +17,7 @@ pub struct ExtensionResult {
     pub(crate) actions: Vec<action>,
 }
 
-#[derive(serde::Serialize, Debug,Clone)]
+#[derive(serde::Serialize, Debug, Clone)]
 pub struct Results {
     pub(crate) total_count: usize,
     pub(crate) items: Vec<ExtensionResult>,
@@ -52,27 +52,24 @@ impl MetaData {
     pub fn build(self) -> Self {
         self
     }
-
 }
 
 pub trait Extension: Send + Sync {
-    
     fn get_meta_data(&self) -> MetaData;
-    
-    fn on_plugin_load(&self,core: &mut Core){
+
+    fn on_plugin_load(&self, core: &mut Core) {
         dbg!("on_plugin_load");
-        
     }
-    
-    fn on_plugin_unload(&self){
+
+    fn on_plugin_unload(&self) {
         dbg!("on_plugin_unload");
     }
 
-    fn on_core_start(&self , core: &mut Core){
+    fn on_core_start(&self, core: &mut Core) {
         dbg!("on_core_start");
     }
 
-    fn on_core_end(&self, core: &mut Core){
+    fn on_core_end(&self, core: &mut Core) {
         dbg!("on_core_end");
     }
 }
@@ -80,7 +77,9 @@ pub trait Extension: Send + Sync {
 impl PartialOrd for dyn Extension {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(
-            self.get_meta_data().priority.cmp(&other.get_meta_data().priority)
+            self.get_meta_data()
+                .priority
+                .cmp(&other.get_meta_data().priority),
         )
     }
 }
@@ -90,4 +89,3 @@ impl PartialEq for dyn Extension {
         self.get_meta_data().id == other.get_meta_data().id
     }
 }
-

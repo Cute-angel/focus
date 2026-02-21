@@ -28,7 +28,7 @@ const app = createApp(App);
 app.use(router);
 
 // 初始化主题
-const { setTheme } = useTheme();
+useTheme();
 // 默认亮色主题
 
 app.mount("#app");

@@ -27,22 +27,22 @@ pub async fn query<R: Runtime>(
     input_text: String,
 ) -> Result<Results, Error> {
     dbg!(&input_text);
-    Core::get_instance().handle_query(input_text.as_str(),app).await
+    Core::get_instance()
+        .handle_query(input_text.as_str(), app)
+        .await
 }
 
 #[tauri::command]
-pub fn run_action(id: String, val:String, app:AppHandle ) {
+pub fn run_action(id: String, val: String, app: AppHandle) {
     dbg!(&id);
     let action_runner = Core::get_instance().get_action_runner();
-    if let Some(action)=  action_runner.get(id.as_ref()){
-        action(val,app);
+    if let Some(action) = action_runner.get(id.as_ref()) {
+        action(val, app);
     }
 }
 
 #[tauri::command]
-pub async fn get_icon_res(){
-
-}
+pub async fn get_icon_res() {}
 
 #[tauri::command]
 fn setup_focus_listener(window: tauri::Window) {}

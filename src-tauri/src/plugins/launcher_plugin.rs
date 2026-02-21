@@ -1,4 +1,4 @@
-use crate::api::command_tree::{Callback, CommandContext, CommandDispatcher, CommandNode, StringArgument};
+use crate::api::command_tree::{Callback, CommandContext, CommandNode, StringArgument};
 use crate::api::extension::{action, Extension, ExtensionResult, MetaData, Results};
 use crate::api::types::PluginResult;
 use crate::core::action_runner::Action;
@@ -15,22 +15,18 @@ use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 use walkdir::WalkDir;
 
-static SEARCH_TABLE:LazyLock<Arc<Mutex<HashMap<String,Program>>>> = LazyLock::new(
-    || Arc::new(Mutex::new(HashMap::new()))
-);
-
+static SEARCH_TABLE: LazyLock<Arc<Mutex<HashMap<String, Program>>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub struct LauncherPlugin {
-    data_puf:PathBuf,
+    data_puf: PathBuf,
     recursive_depth: usize,
-
 }
 
-#[derive(Debug ,Clone)]
-#[derive(Eq, Hash)]
-struct Program{
-    pub display_name:String,
-    pub path:String,
+#[derive(Debug, Clone, Eq, Hash)]
+struct Program {
+    pub display_name: String,
+    pub path: String,
 }
 
 impl PartialEq for Program {
@@ -39,31 +35,55 @@ impl PartialEq for Program {
     }
 }
 
-
 impl Program {
-    fn new(name:&str,path:&str) -> Program {
-        Program{
-            display_name:name.to_string(),
-            path:path.to_string(),
+    fn new(name: &str, path: &str) -> Program {
+        Program {
+            display_name: name.to_string(),
+            path: path.to_string(),
         }
     }
 
-
-
-    pub fn get_path(&self) -> &str{
+    pub fn get_path(&self) -> &str {
         &self.path
     }
 
-    pub fn get_display_name(&self) -> &str{
+    pub fn get_display_name(&self) -> &str {
         &self.display_name
     }
 }
 
+impl From<Program> for ExtensionResult {
+    fn from(item: Program) -> ExtensionResult {
+        let mut icon = r#"<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                                    </svg>"#.to_string();
+        if Path::new(item.get_path()).exists() {
+            if let Some(data) = IconExtractor::default().get_icon(&PathBuf::from(item.get_path())) {
+                icon = format!(
+                    "<img src=\"data:image/png;base64,{}\" alt=\"Image\" />",
+                    to_base64(data)
+                )
+            }
+        }
+
+        ExtensionResult {
+            icon,
+            title: item.display_name.clone(),
+            description: item.path.clone(),
+            actions: vec![action {
+                icon: "hide".to_string(),
+                tooltip: "".to_string(),
+                value: item.path.to_string(),
+                id: "launcher".to_string(),
+            }],
+        }
+    }
+}
 
 impl Default for LauncherPlugin {
     fn default() -> LauncherPlugin {
         LauncherPlugin {
-            data_puf:PathBuf::new(),
+            data_puf: PathBuf::new(),
             recursive_depth: 4,
         }
     }
@@ -73,37 +93,39 @@ impl LauncherPlugin {
         self.build_index();
     }
 
-    fn search_program_keys(&self,num:usize,input:&str) -> Vec<Program> {
+    fn search_program_keys<S:AsRef<str>>(&self, num: usize, input: S) -> Vec<Program> {
         //standardization
-        let input = input.to_lowercase();
+        let input = input.as_ref().to_lowercase();
 
-
-        let lt = SEARCH_TABLE.lock().unwrap().keys().cloned().collect::<Vec<String>>();
+        let lt = SEARCH_TABLE
+            .lock()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect::<Vec<String>>();
         let refs: Vec<&str> = lt.iter().map(|s| s.as_str()).collect();
-        let fuzzy_str =  fuzzy_search_best_n(&input,refs.as_ref(),num).into_iter().map(|(key,w)|(key,w)).collect::<Vec<(&str,f32)>>();
+        let fuzzy_str = fuzzy_search_best_n(&input, refs.as_ref(), num)
+            .into_iter()
+            .map(|(key, w)| (key, w))
+            .collect::<Vec<(&str, f32)>>();
         dbg!(&fuzzy_str);
-        let mut map:HashSet<Program> = HashSet::new();
-        let mut res:Vec<Program> = Vec::with_capacity(fuzzy_str.len());
-
+        let mut map: HashSet<Program> = HashSet::new();
+        let mut res: Vec<Program> = Vec::with_capacity(fuzzy_str.len());
 
         let lock_data = SEARCH_TABLE.lock().unwrap();
         for i in fuzzy_str.iter() {
             if let Some(dat) = lock_data.get((*i).0) {
-                if map.insert(dat.clone()){
+                if map.insert(dat.clone()) {
                     res.push(dat.clone());
                 }
             }
-        };
+        }
         res
     }
 
     pub fn create_watcher(&self) {
-        let th = thread::spawn(move || {
-
-        });
+        let th = thread::spawn(move || {});
     }
-
-
 
     fn contains_chinese(&self, s: &str) -> bool {
         fn is_chinese(c: char) -> bool {
@@ -117,32 +139,33 @@ impl LauncherPlugin {
         s.chars().any(is_chinese)
     }
 
-
     fn start_menu_paths(&self) -> Vec<PathBuf> {
         let mut paths = Vec::new();
         if let Some(programdata) = std::env::var_os("PROGRAMDATA") {
-            paths.push(PathBuf::from(programdata)
-                .join("Microsoft")
-                .join("Windows")
-                .join("Start Menu")
-                .join("Programs"));
+            paths.push(
+                PathBuf::from(programdata)
+                    .join("Microsoft")
+                    .join("Windows")
+                    .join("Start Menu")
+                    .join("Programs"),
+            );
         }
 
         if let Some(appdata) = std::env::var_os("APPDATA") {
-            paths.push(PathBuf::from(appdata)
-                .join("Microsoft")
-                .join("Windows")
-                .join("Start Menu")
-                .join("Programs"));
+            paths.push(
+                PathBuf::from(appdata)
+                    .join("Microsoft")
+                    .join("Windows")
+                    .join("Start Menu")
+                    .join("Programs"),
+            );
         }
         paths
     }
 
     fn resolve_lnk(&self, path: &PathBuf) -> Option<String> {
-        match  LNKParser::from_path(path.to_str()?) {
-            Ok(lnk) => {
-                lnk.get_target_full_path().clone()
-            }
+        match LNKParser::from_path(path.to_str()?) {
+            Ok(lnk) => lnk.get_target_full_path().clone(),
             Err(e) => {
                 eprintln!("{}", e);
                 None
@@ -150,9 +173,9 @@ impl LauncherPlugin {
         }
     }
 
-    fn build_index(&self){
-        let mut search:Vec<(Vec<String>,String,String)> = Vec::with_capacity(100);
-        let mut data:Vec<(String,String)> = Vec::with_capacity(100);
+    fn build_index(&self) {
+        let mut search: Vec<(Vec<String>, String, String)> = Vec::with_capacity(100);
+        let mut data: Vec<(String, String)> = Vec::with_capacity(100);
 
         for start_menu in self.start_menu_paths() {
             dbg!(&start_menu);
@@ -160,52 +183,67 @@ impl LauncherPlugin {
                 for entry in WalkDir::new(start_menu)
                     .into_iter()
                     .filter_map(|e| e.ok())
-                    .filter(|e| e.path().extension().map(|s| s.eq_ignore_ascii_case("lnk")).unwrap_or(false))
+                    .filter(|e| {
+                        e.path()
+                            .extension()
+                            .map(|s| s.eq_ignore_ascii_case("lnk"))
+                            .unwrap_or(false)
+                    })
                 {
                     let path = entry.path().to_path_buf();
-                    let mut file_name = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
+                    let mut file_name = path
+                        .file_stem()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
 
-                    if let Some(mut real_path) =  self.resolve_lnk(&path){
+                    if let Some(mut real_path) = self.resolve_lnk(&path) {
                         if let Some(input) = real_path.strip_prefix("MY_COMPUTER\\") {
                             real_path = input.to_string();
                         }
-                        let _ = &search.push(
-                            (self.build_key_from_name(file_name.clone()),real_path.clone(),file_name)
-                        );
+                        let _ = &search.push((
+                            self.build_key_from_name(file_name.clone()),
+                            real_path.clone(),
+                            file_name,
+                        ));
                     }
                 }
             }
         }
 
         let mut lock_search = SEARCH_TABLE.lock().unwrap();
-        for (keys,value,Display) in search{
+        for (keys, value, Display) in search {
             for key in keys {
-                lock_search.insert(
-                    key,
-                    Program::new(
-                        Display.as_str(),
-                        value.as_str(),
-                    )
-                );
+                lock_search.insert(key, Program::new(Display.as_str(), value.as_str()));
             }
         }
         drop(lock_search);
     }
 
-    fn build_key_from_name(&self, file_name:String) -> Vec<String> {
+    fn build_key_from_name(&self, file_name: String) -> Vec<String> {
         let mut keys = Vec::new();
         if self.contains_chinese(&file_name) {
             keys.push(
-                file_name.as_str().to_pinyin().flatten().map(|x| {x.plain()}).collect::<Vec<&str>>().join(" ")
+                file_name
+                    .as_str()
+                    .to_pinyin()
+                    .flatten()
+                    .map(|x| x.plain())
+                    .collect::<Vec<&str>>()
+                    .join(" "),
             );
             keys.push(
-                file_name.as_str().to_pinyin().flatten().map(|x| {x.first_letter()}).collect::<Vec<&str>>().join("")
+                file_name
+                    .as_str()
+                    .to_pinyin()
+                    .flatten()
+                    .map(|x| x.first_letter())
+                    .collect::<Vec<&str>>()
+                    .join(""),
             )
-        }else {
+        } else {
             for i in file_name.split_whitespace() {
-                keys.push(
-                    i.to_lowercase()
-                )
+                keys.push(i.to_lowercase())
             }
         }
         keys
@@ -222,85 +260,52 @@ impl LauncherPlugin {
     }
 
     fn get_callback(&self) -> Callback {
-        let callback  = move |ctx:CommandContext,app:AppHandle |{
-            if let Some(input) = ctx.get_parm("app_query"){
-
+        let callback = move |ctx: CommandContext, app: AppHandle| {
+            if let Some(input) = ctx.get_parm("app_query") {
                 let launch = LauncherPlugin::default();
 
-                let test = dbg!(launch.search_program_keys(20,input));
+                let test = dbg!(launch.search_program_keys(20, input.as_str()));
 
-                let plugin_res = test.iter().map(
-                    |item|{
-                        let mut icon = r#"<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
-                                    </svg>"#.to_string();
-                        if Path::new(item.get_path()).exists() {
-                            if let Some(data) = IconExtractor::default().get_icon(&PathBuf::from(item.get_path())){
-                                icon = format!("<img src=\"data:image/png;base64,{}\" alt=\"Image\" />", to_base64(data))
-                            }
-                        }
+                let plugin_res = test
+                    .into_iter()
+                    .map(|a| a.into())
+                    .collect::<Vec<ExtensionResult>>();
 
-                        ExtensionResult{
-                            icon,
-                            title: item.display_name.clone(),
-                            description: item.path.clone(),
-                            actions: vec![
-                                action{
-                                    icon: "hide".to_string(),
-                                    tooltip: "".to_string(),
-                                    value: item.path.to_string(),
-                                    id: "launcher".to_string(),
-                                }
-                            ],
-                        }
-                    }
-                ).collect::<Vec<ExtensionResult>>();
-
-                let res = Results{
+                let res = Results {
                     total_count: plugin_res.len(),
                     items: plugin_res,
                 };
                 res.into()
-            }else {
+            } else {
                 PluginResult::Null
             }
-
         };
-        Box::new(move |ctx, app| -> PluginResult {
-            callback(ctx, app)
-        })
-
-
-
+        Box::new(move |ctx, app| -> PluginResult { callback(ctx, app) })
     }
 
-    pub fn get_node(&self) -> CommandNode{
+    pub fn get_node(&self) -> CommandNode {
         let cmd = CommandNode::new("app").then(
             CommandNode::new("app_query")
                 .argument(StringArgument)
-                .execute(self.get_callback())
+                .execute(self.get_callback()),
         );
         cmd
     }
-
 }
 
-
 impl Extension for LauncherPlugin {
-
-
     fn get_meta_data(&self) -> MetaData {
-        MetaData::default_builder("AppLauncher").set_version("1.0.0").set_priority(200).build()
+        MetaData::default_builder("AppLauncher")
+            .set_version("1.0.0")
+            .set_priority(200)
+            .build()
     }
 
-    fn on_plugin_load(&self,core: &mut Core) {
+    fn on_plugin_load(&self, core: &mut Core) {
         self.init();
-        core.get_command_dispatcher().register(
-            self.get_node()
-        );
-        core.get_action_runner().add(
-            "launcher",
-            self.get_action(),
-        );
+        core.get_command_dispatcher().register(self.get_node());
+        core.get_action_runner().add("launcher", self.get_action());
+        core.get_shortcut_dispatcher();
+
     }
 }

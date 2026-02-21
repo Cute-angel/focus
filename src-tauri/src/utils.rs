@@ -1,55 +1,56 @@
+use everything_sdk::{global, EverythingError, RequestFlags, SortType};
+use image::codecs::png::PngEncoder;
+use image::ExtendedColorType::Rgba8;
+use image::{ImageEncoder, RgbaImage};
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use everything_sdk::{global, EverythingError, RequestFlags, SortType};
-use image::{ImageEncoder, RgbaImage};
 use std::mem;
 use std::mem::MaybeUninit;
 use std::path::PathBuf;
 use std::ptr::addr_of_mut;
 use std::sync::{Arc, LazyLock, Mutex};
-use image::codecs::png::PngEncoder;
-use image::ExtendedColorType::Rgba8;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::HDC;
-use windows::Win32::Graphics::Gdi::{DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS};
+use windows::Win32::Graphics::Gdi::{
+    DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFOHEADER, BI_RGB,
+    DIB_RGB_COLORS,
+};
 use windows::Win32::Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES;
-use windows::Win32::UI::Shell::{ExtractIconExW, SHGetFileInfoW, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON};
+use windows::Win32::UI::Shell::{
+    ExtractIconExW, SHGetFileInfoW, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON,
+};
 use windows::Win32::UI::WindowsAndMessaging::{GetIconInfo, HICON, ICONINFO};
-
 
 #[derive(Debug)]
 pub struct FileInfo {
-    size:usize,
+    size: usize,
     name: String,
-    path:PathBuf
-
+    path: PathBuf,
 }
 
-
 impl FileInfo {
-    fn new(path:PathBuf,size:usize) -> FileInfo {
+    fn new(path: PathBuf, size: usize) -> FileInfo {
         let name = match path.file_name() {
             Some(name) => name.to_string_lossy().into_owned(),
-            None => "UnknownFile".to_string()
+            None => "UnknownFile".to_string(),
         };
 
         Self {
             size,
             name,
-            path: path.to_path_buf()
+            path: path.to_path_buf(),
         }
-
     }
-    
+
     pub fn get_size(&self) -> usize {
         self.size
     }
-    
-    pub fn get_name(&self) ->String {
+
+    pub fn get_name(&self) -> String {
         self.name.clone()
     }
-    
+
     pub fn get_path(&self) -> &PathBuf {
         &self.path
     }
@@ -59,18 +60,16 @@ impl FileInfo {
     }
 }
 
-pub struct  EverythingHelper{
-    max:usize,
+pub struct EverythingHelper {
+    max: usize,
 }
 
 impl Default for EverythingHelper {
     fn default() -> Self {
-        Self { max:20 }
+        Self { max: 20 }
     }
 }
 impl EverythingHelper {
-
-
     pub fn set_max(mut self, max: usize) -> Self {
         self.max = max;
         self
@@ -78,7 +77,7 @@ impl EverythingHelper {
     pub async fn check_everything_server() -> Result<bool, EverythingError> {
         global().lock().await.is_db_loaded()
     }
-    pub async fn query(&self, input:&str) -> Vec<FileInfo> {
+    pub async fn query(&self, input: &str) -> Vec<FileInfo> {
         let mut everything = global().lock().await;
 
         // All other things are consistent with the sync version. (expect searcher.query())
@@ -114,17 +113,16 @@ impl EverythingHelper {
                 //let visible_num_results = dbg!(results.num());
                 //let total_num_results = dbg!(results.total());
 
-
                 // let is_attr_flag_set =
                 //     dbg!(results.request_flags()).contains(RequestFlags::EVERYTHING_REQUEST_ATTRIBUTES);
                 // assert!(!is_attr_flag_set);
 
-
-
-
-                let res:Vec<FileInfo> = results.iter().map(|item|{
-                    FileInfo::new( item.filepath().unwrap(),item.size().unwrap() as usize )
-                } ).collect();
+                let res: Vec<FileInfo> = results
+                    .iter()
+                    .map(|item| {
+                        FileInfo::new(item.filepath().unwrap(), item.size().unwrap() as usize)
+                    })
+                    .collect();
                 drop(results);
 
                 return res;
@@ -149,71 +147,75 @@ impl EverythingHelper {
     }
 }
 
+static ICON_CACHE: LazyLock<Arc<Mutex<HashMap<String, RgbaImage>>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
-static ICON_CACHE:LazyLock<Arc<Mutex<HashMap<String,RgbaImage>>>> = LazyLock::new(|| {Arc::new(Mutex::new(HashMap::new()))});
-
-pub struct IconExtractor{
-    cache: Arc<Mutex<HashMap<String,RgbaImage>>>
+pub struct IconExtractor {
+    cache: Arc<Mutex<HashMap<String, RgbaImage>>>,
 }
 
 impl Default for IconExtractor {
     fn default() -> Self {
         Self {
-            cache: ICON_CACHE.clone()
+            cache: ICON_CACHE.clone(),
         }
     }
 }
 impl IconExtractor {
-
-    pub fn get_icon(&self,path:&PathBuf) -> Option<RgbaImage>{
+    pub fn get_icon(&self, path: &PathBuf) -> Option<RgbaImage> {
         let mut key = path.file_name().unwrap().to_str().unwrap().to_string();
 
-
-        let ext = path.extension().unwrap_or(OsStr::new("empty")).to_str().unwrap().to_lowercase();
+        let ext = path
+            .extension()
+            .unwrap_or(OsStr::new("empty"))
+            .to_str()
+            .unwrap()
+            .to_lowercase();
         if !(ext == "exe" || ext == "lnk" || ext == "ico") {
             key = ext.to_string();
         }
         let lock = self.cache.lock().unwrap();
         if let Some(data) = lock.get(&key) {
             Some(data.clone())
-        }else {
+        } else {
             drop(lock);
-            let data=  self._get_icon(path);
+            let data = self._get_icon(path);
             if let Some(data) = data {
                 let mut lock = self.cache.lock().unwrap();
-                lock.insert(key,data.clone());
+                lock.insert(key, data.clone());
                 drop(lock);
                 Some(data)
-            }else{
+            } else {
                 None
             }
         }
     }
-    fn _get_icon(&self,path:&PathBuf) -> Option<RgbaImage>{
+    fn _get_icon(&self, path: &PathBuf) -> Option<RgbaImage> {
         let a = path.extension();
         if let Some(ext) = a {
             if let Some(ext) = ext.to_str() {
-
-                if ext == "exe"{
+                if ext == "exe" {
                     if let Some(hicon) = self.get_icon_from_exe(&path) {
                         self.hicon_to_png(hicon)
-                    }else {None}
-
-
-                }else {
-                    dbg!(path,path.is_dir());
+                    } else {
+                        None
+                    }
+                } else {
+                    dbg!(path, path.is_dir());
                     if let Some(hicon) = self.get_icon_from_file(&path) {
                         self.hicon_to_png(hicon)
-                    }else {None}
+                    } else {
+                        None
+                    }
                 }
-            }else {
+            } else {
                 None
             }
-        }else {
+        } else {
             None
         }
     }
-    fn get_icon_from_exe(&self, path: &PathBuf) -> Option<HICON>{
+    fn get_icon_from_exe(&self, path: &PathBuf) -> Option<HICON> {
         unsafe {
             // 将路径转换为宽字符格式
             let path = path.to_str().unwrap();
@@ -242,9 +244,8 @@ impl IconExtractor {
         }
     }
 
-    fn get_icon_from_file(&self,path:&PathBuf) -> Option<HICON>{
+    fn get_icon_from_file(&self, path: &PathBuf) -> Option<HICON> {
         let mut file_info = SHFILEINFOW::default();
-
 
         unsafe {
             let path = path.to_str().unwrap();
@@ -262,13 +263,11 @@ impl IconExtractor {
         Some(hicon)
     }
 
-    fn hicon_to_png(&self, hicon: HICON) -> Option<RgbaImage>{
+    fn hicon_to_png(&self, hicon: HICON) -> Option<RgbaImage> {
         unsafe {
             // 获取图标信息
             let mut ii = ICONINFO::default();
             let _ = GetIconInfo(hicon, &mut ii);
-
-
 
             let bitmap_size_i32 = i32::try_from(size_of::<BITMAP>()).unwrap();
             let biheader_size_u32 = u32::try_from(size_of::<BITMAPINFOHEADER>()).unwrap();
@@ -279,15 +278,14 @@ impl IconExtractor {
                 bitmap_size_i32,
                 Some(bitmap.as_mut_ptr().cast()),
             );
-            if (result != bitmap_size_i32){
+            if (result != bitmap_size_i32) {
                 let _ = ii.hbmColor;
                 let _ = ii.hbmMask;
                 let _ = bitmap;
 
-                return  None
+                return None;
             }
             let bitmap = bitmap.assume_init_ref();
-
 
             // ico info
             let width_u32 = u32::try_from(bitmap.bmWidth).unwrap();
@@ -303,10 +301,8 @@ impl IconExtractor {
             let mut buf: Vec<u8> = Vec::with_capacity(buf_size);
             dbg!(buf.capacity());
 
-
             let dc = GetDC(Some(HWND::default()));
             assert_ne!(dc, HDC::default());
-
 
             let mut bitmap_info = BITMAPINFOHEADER {
                 biSize: biheader_size_u32,
@@ -340,7 +336,6 @@ impl IconExtractor {
             DeleteObject(ii.hbmColor.into()).unwrap();
             DeleteObject(ii.hbmMask.into()).unwrap();
 
-
             // swap B R
             for chunk in buf.chunks_exact_mut(4) {
                 let [b, _, r, _] = chunk else { unreachable!() };
@@ -349,19 +344,16 @@ impl IconExtractor {
 
             RgbaImage::from_vec(width_u32, height_u32, buf)
         }
-
     }
 }
 
-
-pub fn to_base64(data:RgbaImage) -> String {
+pub fn to_base64(data: RgbaImage) -> String {
     let mut buffer = Vec::new();
     let png_encoder = PngEncoder::new(&mut buffer);
 
+    let _ = png_encoder.write_image(data.as_raw(), data.width(), data.height(), Rgba8);
 
-    let _ = png_encoder.write_image(data.as_raw(), data.width(),data.height(),Rgba8);
-
-    use base64::{engine::general_purpose, Engine as _, };
+    use base64::{engine::general_purpose, Engine as _};
 
     let b64 = general_purpose::STANDARD.encode(buffer);
     b64

@@ -3,17 +3,17 @@ use std::sync::{Arc, LazyLock, Mutex};
 use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 
-use crate::core::action_runner::{Action, ActionRunner};
 use crate::api::command_tree::{
     Callback, CommandContext, CommandDispatcher, CommandNode, StringArgument,
 };
 use crate::api::extension::{action, Extension, ExtensionResult, MetaData, Results};
-use crate::utils::EverythingHelper;
+use crate::api::types::PluginResult;
+use crate::core::action_runner::{Action, ActionRunner};
+use crate::core::Core;
 use crate::utils::to_base64;
+use crate::utils::EverythingHelper;
 use crate::utils::IconExtractor;
 use futures::executor::block_on;
-use crate::api::types::PluginResult;
-use crate::core::Core;
 
 pub struct FilePlugin {}
 
@@ -29,9 +29,7 @@ impl FilePlugin {
     fn get_action_icon(&self) {}
 
     fn get_show_result_func(&self) -> Callback {
-        let async_func = async |ctx: CommandContext,
-                                app: AppHandle|
-               -> PluginResult {
+        let async_func = async |ctx: CommandContext, app: AppHandle| -> PluginResult {
             let helper = &*EVERY_THING_HELPER;
             if let Some(str) = ctx.get_parm("file_name") {
                 let info = helper.lock().unwrap().query(str).await;
@@ -100,11 +98,9 @@ impl FilePlugin {
 }
 
 impl Extension for FilePlugin {
-    
     fn get_meta_data(&self) -> MetaData {
         MetaData::default_builder("FileSearcher").build()
     }
-
 
     fn on_plugin_load(&self, core: &mut Core) {
         let command_dispatcher = core.get_command_dispatcher();
@@ -113,5 +109,4 @@ impl Extension for FilePlugin {
         let action_runner = core.get_action_runner();
         action_runner.add("file_plugin_runner", self.get_action());
     }
-    
 }

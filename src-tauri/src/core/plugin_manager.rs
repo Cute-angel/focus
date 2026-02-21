@@ -8,7 +8,7 @@ use crate::plugins::LauncherPlugin;
 pub struct PluginManager {}
 
 impl PluginManager {
-    pub fn get_builtin_plugins() -> Vec<Box<dyn Extension>>{
+    pub fn get_builtin_plugins() -> Vec<Box<dyn Extension>> {
         let mut plugins: Vec<Box<dyn Extension>> = Vec::new();
         plugins.push(Box::new(FilePlugin::default()));
         plugins.push(Box::new(AppPlugin::default()));
@@ -17,5 +17,4 @@ impl PluginManager {
         plugins.push(Box::new(LauncherPlugin::default()));
         plugins
     }
-
 }

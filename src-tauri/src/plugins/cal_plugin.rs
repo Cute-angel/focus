@@ -1,6 +1,7 @@
-use crate::core::action_runner::ActionRunner;
-use crate::api::command_tree::{CommandDispatcher, CommandNode, PluginError, StringArgument};
+use crate::api::command_tree::{CommandNode, PluginError, StringArgument};
 use crate::api::extension::{action, Extension, ExtensionResult, MetaData};
+use crate::api::types::PluginResult;
+use crate::core::Core;
 use crate::plugins::cal_plugin::CalculatorError::{
     DivisionByZeroError, FormatError, LessOperatorError, OperatorLocationError, ParenCloseError,
     Unknown,
@@ -8,9 +9,6 @@ use crate::plugins::cal_plugin::CalculatorError::{
 use std::any::Any;
 use tauri::AppHandle;
 use tauri_plugin_clipboard_manager::ClipboardExt;
-use tracing::callsite::register;
-use crate::api::types::PluginResult;
-use crate::core::Core;
 
 #[derive(Debug, Clone)]
 enum Token {
@@ -38,14 +36,12 @@ pub enum CalculatorError {
 
 impl From<CalculatorError> for PluginResult {
     fn from(err: CalculatorError) -> Self {
-        PluginResult::PluginError(
-            PluginError::Error("Calculator".to_string(), format!("{:?}", err))
-        )
+        PluginResult::PluginError(PluginError::Error(
+            "Calculator".to_string(),
+            format!("{:?}", err),
+        ))
     }
 }
-
-
-
 
 fn tokenize(expr: &str) -> Result<Vec<Token>, CalculatorError> {
     let expr = expr.trim_matches('=');
@@ -273,7 +269,6 @@ impl Extension for CalculatorPlugin {
             </svg>
             "#;
 
-
         let cmd = CommandNode::new("cal").then(
             CommandNode::new("cal_expression")
                 .set_truncate()
@@ -309,19 +304,20 @@ impl Extension for CalculatorPlugin {
                     }
                 }),
         );
-        core.get_command_dispatcher().register(
-            cmd
-        );
-        let action = |res:String,app:AppHandle| {
+        core.get_command_dispatcher().register(cmd);
+        let action = |res: String, app: AppHandle| {
             app.clipboard().write_text(res.to_string()).unwrap();
         };
 
-        core.get_action_runner().add("cal_expression", Box::new(action));
+        core.get_action_runner()
+            .add("cal_expression", Box::new(action));
     }
-    
 
     fn get_meta_data(&self) -> MetaData {
-        MetaData::default_builder("Calculator").set_version("1.0.0").set_priority(90).build()
+        MetaData::default_builder("Calculator")
+            .set_version("1.0.0")
+            .set_priority(90)
+            .build()
     }
 }
 
