@@ -27,18 +27,17 @@ pub async fn query<R: Runtime>(
     input_text: String,
 ) -> Result<Results, Error> {
     dbg!(&input_text);
-    Core::get_instance()
+     let r = Core::get_instance()
         .handle_query(input_text.as_str(), app)
-        .await
+        .await;
+    Core::sub_ref();
+    r
 }
 
 #[tauri::command]
-pub fn run_action(id: String, val: String, app: AppHandle) {
-    dbg!(&id);
-    let action_runner = Core::get_instance().get_action_runner();
-    if let Some(action) = action_runner.get(id.as_ref()) {
-        action(val, app);
-    }
+pub async  fn run_action(id: String, val: String, app: AppHandle) {
+    Core::get_instance().handle_action(id, val, app).await;
+    Core::sub_ref();
 }
 
 #[tauri::command]

@@ -2,7 +2,7 @@ use crate::api::command_tree::{Callback, CommandContext, CommandNode, StringArgu
 use crate::api::extension::{action, Extension, ExtensionResult, MetaData, Results};
 use crate::api::types::PluginResult;
 use crate::core::action_runner::Action;
-use crate::core::Core;
+use crate::core::{Core, ScoredItem};
 use crate::utils::{to_base64, IconExtractor};
 use lnk_parser::LNKParser;
 use pinyin::ToPinyin;
@@ -80,6 +80,16 @@ impl From<Program> for ExtensionResult {
     }
 }
 
+impl From<(Program,f32)> for ScoredItem<PluginResult>  {
+    fn from(value: (Program, f32)) -> Self {
+        let e_res:ExtensionResult = value.0.into();
+        ScoredItem{
+            score:(value.1 *100f32 )as u64,
+            value: e_res.into(),
+        }
+    }
+}
+
 impl Default for LauncherPlugin {
     fn default() -> LauncherPlugin {
         LauncherPlugin {
@@ -93,7 +103,7 @@ impl LauncherPlugin {
         self.build_index();
     }
 
-    fn search_program_keys<S:AsRef<str>>(&self, num: usize, input: S) -> Vec<Program> {
+    fn search_program_keys<S:AsRef<str>>(num: usize, input: S) -> Vec<(Program,f32)> {
         //standardization
         let input = input.as_ref().to_lowercase();
 
@@ -108,15 +118,15 @@ impl LauncherPlugin {
             .into_iter()
             .map(|(key, w)| (key, w))
             .collect::<Vec<(&str, f32)>>();
-        dbg!(&fuzzy_str);
+        //dbg!(&fuzzy_str);
         let mut map: HashSet<Program> = HashSet::new();
-        let mut res: Vec<Program> = Vec::with_capacity(fuzzy_str.len());
+        let mut res: Vec<(Program,f32)> = Vec::with_capacity(fuzzy_str.len());
 
         let lock_data = SEARCH_TABLE.lock().unwrap();
         for i in fuzzy_str.iter() {
             if let Some(dat) = lock_data.get((*i).0) {
                 if map.insert(dat.clone()) {
-                    res.push(dat.clone());
+                    res.push((dat.clone(),(*i).1));
                 }
             }
         }
@@ -262,13 +272,12 @@ impl LauncherPlugin {
     fn get_callback(&self) -> Callback {
         let callback = move |ctx: CommandContext, app: AppHandle| {
             if let Some(input) = ctx.get_parm("app_query") {
-                let launch = LauncherPlugin::default();
 
-                let test = dbg!(launch.search_program_keys(20, input.as_str()));
+                let test = LauncherPlugin::search_program_keys(20, input.as_str());
 
                 let plugin_res = test
                     .into_iter()
-                    .map(|a| a.into())
+                    .map(|a| a.0.into())
                     .collect::<Vec<ExtensionResult>>();
 
                 let res = Results {
@@ -305,7 +314,17 @@ impl Extension for LauncherPlugin {
         self.init();
         core.get_command_dispatcher().register(self.get_node());
         core.get_action_runner().add("launcher", self.get_action());
-        core.get_shortcut_dispatcher();
+        core.get_shortcut_dispatcher().register_any(
+            self.get_meta_data().priority as i32,
+            async |ctx,_app,| {
+                let query_text = ctx.trimmed_input;
+                LauncherPlugin::search_program_keys(10,query_text).into_iter()
+                    .map(|x| {
+                        x.into()
+                    })
+                .collect()
+            }
+        )
 
     }
 }

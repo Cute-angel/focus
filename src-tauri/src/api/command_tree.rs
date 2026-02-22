@@ -26,11 +26,19 @@ impl Parameter for StringArgument {
     }
 }
 
+
+#[derive(Debug)]
 pub enum PluginResult {
     ExtensionResult(ExtensionResult),
     Results(Results),
     PluginError(PluginError),
     Null,
+}
+
+impl Default for PluginResult {
+    fn default() -> Self {
+        PluginResult::Null
+    }
 }
 
 impl From<ExtensionResult> for PluginResult {
@@ -146,7 +154,7 @@ impl CommandDispatcher {
         self.root.child.insert(child.name.clone(), child);
     }
 
-    pub fn run(&mut self, input: impl Into<String>) -> Option<(&Callback, CommandContext)> {
+    pub fn run(& self, input: impl Into<String>) -> Option<(&Callback, CommandContext)> {
         let input:String = input.into();
         let command_content;
         // cut the prefix and match if the input start with prefix

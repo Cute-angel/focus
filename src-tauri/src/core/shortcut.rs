@@ -2,12 +2,13 @@ use futures::future::{join_all, BoxFuture};
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
+use crate::api::extension::Results;
+use crate::api::types::PluginResult;
 
 #[derive(Debug, Clone)]
 pub struct ShortcutContext {
     pub raw_input: String,
     pub trimmed_input: String,
-    pub tokens: Vec<String>,
     pub rest_after_prefix: String,
 }
 
@@ -16,22 +17,17 @@ pub struct ShortcutContext {
 impl ShortcutContext {
     pub fn new(input: &str) -> Self {
         let trimmed_input = input.trim().to_string();
-        let tokens = trimmed_input
-            .split_whitespace()
-            .map(|it| it.to_string())
-            .collect::<Vec<_>>();
-        let rest_after_prefix = tokens.iter().skip(1).cloned().collect::<Vec<_>>().join(" ");
+        let rest_after_prefix = trimmed_input.chars().skip(1).collect::<String>();
 
         Self {
             raw_input: input.to_string(),
             trimmed_input,
-            tokens,
             rest_after_prefix,
         }
     }
 
-    pub fn prefix(&self) -> Option<&str> {
-        self.tokens.first().map(String::as_str)
+    pub fn prefix(&self) -> Option<char> {
+        self.trimmed_input.chars().next()
     }
 }
 
@@ -39,6 +35,21 @@ impl ShortcutContext {
 pub struct ScoredItem<T> {
     pub score: u64,
     pub value: T,
+}
+
+impl<T> ScoredItem<T>{
+    pub fn new(score: u64, value: T) -> Self {
+        ScoredItem { score, value }
+    }
+}
+
+impl<T:Default> Default for ScoredItem<T> {
+    fn default() -> Self {
+        ScoredItem {
+            score:0,
+            value: T::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -55,10 +66,43 @@ pub struct ShortcutResult<T> {
     pub items: Vec<ScoredItem<T>>,
 }
 
+impl<T> From<ShortcutResult<T>> for Vec<T>{
+    fn from(shortcut: ShortcutResult<T>) -> Vec<T> {
+        shortcut.items.into_iter().map(|it| it.value).collect()
+    }
+}
+
+impl From<ShortcutResult<PluginResult>> for PluginResult {
+    fn from(shortcut: ShortcutResult<PluginResult>) -> PluginResult {
+        let mut total = 0;
+        let mut items = Vec::new();
+        for i in shortcut.items {
+            if i.score > 0u64 {
+                match i.value {
+                    PluginResult::ExtensionResult(i) => {
+                        items.push(i);
+                        total += 1;
+                    }
+                    PluginResult::Results(mut i) => {
+                        items.append(&mut i.items);
+                        total+= i.total_count;
+                    }
+                    PluginResult::PluginError(_) => {}
+                    PluginResult::Null => {}
+                };
+            }
+        }
+        Results {
+            total_count: total,
+            items,
+        }.into()
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ShortcutError {
     #[error("duplicated exact key: {0}")]
-    DuplicateExactKey(String),
+    DuplicateExactKey(char),
 }
 
 type ExactHandler<C, T> =
@@ -74,7 +118,7 @@ where
     T: Send + 'static,
 {
     Exact {
-        key: String,
+        key: char,
         handler: ExactHandler<C, T>,
     },
     Any {
@@ -93,7 +137,7 @@ where
     C: Clone + Send + Sync + 'static,
     T: Send + 'static,
 {
-    pub fn exact<F, Fut>(key: impl Into<String>, handler: F) -> Self
+    pub fn exact<F, Fut>(key: impl Into<char>, handler: F) -> Self
     where
         F: Fn(ShortcutContext, C) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Vec<T>> + Send + 'static,
@@ -164,7 +208,7 @@ where
     C: Clone + Send + Sync + 'static,
     T: Send + 'static,
 {
-    exact_handlers: HashMap<String, ExactEntry<C, T>>,
+    exact_handlers: HashMap<char, ExactEntry<C, T>>,
     any_handlers: Vec<AnyEntry<C, T>>,
     fixed_handlers: Vec<FixedEntry<C, T>>,
     next_register_order: usize,
@@ -250,7 +294,6 @@ where
             }
         }
     }
-
     /// Register an exact-prefix handler.
     ///
     /// This is a shorthand for:
@@ -262,14 +305,14 @@ where
     ///
     /// let mut dispatcher = ShortcutsDispatcher::<(), String>::new();
     /// dispatcher
-    ///     .register_exact("open", |ctx, _| async move {
+    ///     .register_exact("=", |ctx, _| async move {
     ///         vec![format!("exact: {}", ctx.rest_after_prefix)]
     ///     })
     ///     .unwrap();
     /// ```
     pub fn register_exact<F, Fut>(
         &mut self,
-        key: impl Into<String>,
+        key: impl Into<char>,
         handler: F,
     ) -> Result<(), ShortcutError>
     where
@@ -341,7 +384,7 @@ where
         let ctx = ShortcutContext::new(input);
 
         if let Some(prefix) = ctx.prefix() {
-            if let Some(entry) = self.exact_handlers.get(prefix) {
+            if let Some(entry) = self.exact_handlers.get(&prefix) {
                 let exact_values = (entry.handler)(ctx.clone(), runtime).await;
                 let mut items = exact_values
                     .into_iter()
@@ -507,7 +550,7 @@ mod tests {
 
         let mut dispatcher = ShortcutsDispatcher::<(), String>::new();
         dispatcher
-            .register_exact("app", |_ctx, _| async move { vec!["exact".to_string()] })
+            .register_exact('>', |_ctx, _| async move { vec!["exact".to_string()] })
             .unwrap();
 
         let any_called_clone = any_called.clone();
@@ -531,7 +574,7 @@ mod tests {
             }
         });
 
-        let result = block_on(dispatcher.run("app query", (), Some(10)));
+        let result = block_on(dispatcher.run(">query", (), Some(10)));
         assert_eq!(result.stage, DispatchStage::Exact);
         assert_eq!(result.items.len(), 1);
         assert_eq!(result.items[0].value, "exact");

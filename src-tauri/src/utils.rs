@@ -201,7 +201,7 @@ impl IconExtractor {
                         None
                     }
                 } else {
-                    dbg!(path, path.is_dir());
+                    //dbg!(path, path.is_dir());
                     if let Some(hicon) = self.get_icon_from_file(&path) {
                         self.hicon_to_png(hicon)
                     } else {
@@ -299,7 +299,6 @@ impl IconExtractor {
                 .and_then(|size| size.checked_mul(4))
                 .unwrap();
             let mut buf: Vec<u8> = Vec::with_capacity(buf_size);
-            dbg!(buf.capacity());
 
             let dc = GetDC(Some(HWND::default()));
             assert_ne!(dc, HDC::default());

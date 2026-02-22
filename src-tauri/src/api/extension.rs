@@ -10,6 +10,7 @@ pub struct action {
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
+#[derive(Default)]
 pub struct ExtensionResult {
     pub(crate) icon: String,
     pub(crate) title: String,
@@ -25,9 +26,9 @@ pub struct Results {
 
 #[derive(Debug, Clone)]
 pub struct MetaData {
-    id: String,
-    version: String,
-    priority: usize,
+    pub id: String,
+    pub version: String,
+    pub priority: usize,
 }
 
 impl MetaData {

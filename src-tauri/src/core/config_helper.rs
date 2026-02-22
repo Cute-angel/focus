@@ -180,12 +180,12 @@ impl ConfigHelper {
         &mut self,
         namespace: &str,
         value: T,
-    ) -> Result<(), Box<dyn std::error::Error>>
+    ) -> Result<(), Box<dyn std::error::Error + '_>>
     where
         T: Serialize,
     {
         let toml_value = toml::Value::try_from(value)?;
-        let mut map = self.configs.lock().unwrap();
+        let mut map = self.configs.lock()?;
         map.insert(namespace.to_string(), toml_value);
         self.dirty.store(true, Ordering::Release);
         Ok(())
@@ -246,7 +246,7 @@ impl ConfigHelper {
     fn write_snapshot(
         path: &Path,
         configs: &Arc<Mutex<HashMap<String, toml::Value>>>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), Box<dyn std::error::Error >> {
         let mut toml_map = toml::value::Table::new();
         let map = configs.lock().unwrap();
 

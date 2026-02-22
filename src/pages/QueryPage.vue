@@ -135,6 +135,8 @@ const autoResizeWithObserver = (el: HTMLElement) => {
 }
 
 onMounted(() => {
+    console.log("query_page mount")
+
     if (mainPage.value) autoResizeWithObserver(mainPage.value)
 
     // 只在生产环境监听窗口失焦事件
