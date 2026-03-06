@@ -1,5 +1,5 @@
 use crate::api::command_tree::{CommandNode, PluginError, StringArgument};
-use crate::api::extension::{action, Extension, ExtensionResult, MetaData};
+use crate::api::extension::{action, Plugin, ExtensionResult, MetaData};
 use crate::api::types::PluginResult;
 use crate::core::{Core, ScoredItem};
 use crate::plugins::cal_plugin::CalculatorError::{
@@ -295,7 +295,7 @@ impl CalculatorPlugin {
     }
 }
 
-impl Extension for CalculatorPlugin {
+impl Plugin for CalculatorPlugin {
     fn get_meta_data(&self) -> MetaData {
         MetaData::default_builder("Calculator")
             .set_version("1.0.0")

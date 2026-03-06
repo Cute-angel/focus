@@ -1,9 +1,10 @@
 use crate::commands::{query, run_action};
 use crate::core::{Core};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock , Mutex};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager};
+
 mod api;
 mod commands;
 pub mod core;
@@ -20,7 +21,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .setup(|app| unsafe {
+        .setup(|app|  {
             let hide_i = MenuItem::with_id(app, "hide", "隐藏focus", true, None::<&str>)?;
             let open_query_page =
                 MenuItem::with_id(app, "query_open", "显示focus", true, None::<&str>)?;
@@ -59,7 +60,7 @@ pub fn run() {
             }
 
             APP_HANDLE.set(Arc::new(app.handle().clone())).ok();
-            Core::new();
+            app.manage(Core::new());
 
             Ok(())
         })
@@ -75,7 +76,9 @@ pub fn run() {
                 }
                 tauri::RunEvent::Exit => {
                     println!("应用退出");
-                    Core::free();
+                    if let Some(core) = app_handle.try_state::<Core>() {
+                        core.shutdown();
+                    }
                 }
                 _ => {}
             }

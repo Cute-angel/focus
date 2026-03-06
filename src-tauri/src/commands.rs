@@ -1,4 +1,5 @@
-use tauri::{AppHandle, Runtime};
+use std::sync::Mutex;
+use tauri::{AppHandle, Manager, Runtime, State};
 
 use crate::api::command_tree::PluginError;
 use crate::api::extension::Results;
@@ -9,6 +10,8 @@ use crate::core::Core;
 pub enum Error {
     #[error(transparent)]
     Plugin(#[from] PluginError),
+    #[error("CoreError: {0}")]
+    CoreError(String)
 }
 
 impl serde::Serialize for Error {
@@ -27,17 +30,32 @@ pub async fn query<R: Runtime>(
     input_text: String,
 ) -> Result<Results, Error> {
     dbg!(&input_text);
-     let r = Core::get_instance()
-        .handle_query(input_text.as_str(), app)
-        .await;
-    Core::sub_ref();
-    r
+    if let Some(core) = app.try_state::<Core>() {
+        let r = core
+            .handle_query(input_text.as_str(), app.clone())
+            .await;
+
+
+        r
+    } else {
+        Err(Error::CoreError(String::from("no core found")))
+    }
+
+
 }
 
 #[tauri::command]
-pub async  fn run_action(id: String, val: String, app: AppHandle) {
-    Core::get_instance().handle_action(id, val, app).await;
-    Core::sub_ref();
+pub async fn run_action(
+    id: String,
+    val: String,
+    app: AppHandle,
+) -> Result<(), Error> {
+    if let Some(core) = app.try_state::<Core>() {
+        core.handle_action(id, val, app.clone()).await;
+    }
+
+
+    Ok(())
 }
 
 #[tauri::command]

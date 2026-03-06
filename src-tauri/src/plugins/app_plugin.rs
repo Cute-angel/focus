@@ -1,5 +1,5 @@
 use crate::api::command_tree::{CommandContext, CommandDispatcher, CommandNode};
-use crate::api::extension::{action, Extension, ExtensionResult, MetaData, Results};
+use crate::api::extension::{action, Plugin, ExtensionResult, MetaData, Results};
 use crate::core::action_runner::Action;
 use crate::core::Core;
 use tauri::AppHandle;
@@ -72,7 +72,7 @@ impl AppPlugin {
     }
 }
 
-impl Extension for AppPlugin {
+impl Plugin for AppPlugin {
     fn get_meta_data(&self) -> MetaData {
         MetaData::default_builder("Manager")
             .set_priority(10)

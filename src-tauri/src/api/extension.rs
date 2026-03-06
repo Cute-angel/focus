@@ -12,7 +12,7 @@ pub struct action {
 #[derive(serde::Serialize, Debug, Clone)]
 #[derive(Default)]
 pub struct ExtensionResult {
-    pub(crate) icon: String,
+    pub(crate) icon: String, 
     pub(crate) title: String,
     pub(crate) description: String,
     pub(crate) actions: Vec<action>,
@@ -55,7 +55,7 @@ impl MetaData {
     }
 }
 
-pub trait Extension: Send + Sync {
+pub trait Plugin: Send + Sync {
     fn get_meta_data(&self) -> MetaData;
 
     fn on_plugin_load(&self, core: &mut Core) {
@@ -75,7 +75,7 @@ pub trait Extension: Send + Sync {
     }
 }
 
-impl PartialOrd for dyn Extension {
+impl PartialOrd for dyn Plugin {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(
             self.get_meta_data()
@@ -85,7 +85,7 @@ impl PartialOrd for dyn Extension {
     }
 }
 
-impl PartialEq for dyn Extension {
+impl PartialEq for dyn Plugin {
     fn eq(&self, other: &Self) -> bool {
         self.get_meta_data().id == other.get_meta_data().id
     }

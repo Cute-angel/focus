@@ -102,8 +102,8 @@ impl ConfigHelper {
     }
 
     /// 保存配置到磁盘
-    pub fn save(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        if !self.dirty.swap(false, Ordering::AcqRel) {
+    pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
+        if dbg!(!self.dirty.swap(false, Ordering::AcqRel)) {
             return Ok(());
         }
         if let Err(e) = Self::write_snapshot(&self.path, &self.configs) {

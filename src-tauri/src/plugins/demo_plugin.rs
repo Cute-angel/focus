@@ -1,5 +1,5 @@
 use crate::api::command_tree::{CommandContext, CommandDispatcher, CommandNode, StringArgument};
-use crate::api::extension::{Extension, ExtensionResult, MetaData, Results};
+use crate::api::extension::{Plugin, ExtensionResult, MetaData, Results};
 use crate::core::Core;
 
 pub struct DemoPlugin {
@@ -14,7 +14,7 @@ impl Default for DemoPlugin {
     }
 }
 
-impl Extension for DemoPlugin {
+impl Plugin for DemoPlugin {
     fn get_meta_data(&self) -> MetaData {
         self.info.clone()
     }

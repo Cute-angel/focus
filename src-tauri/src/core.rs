@@ -6,7 +6,7 @@ mod shortcut;
 
 pub use crate::core::shortcut::ScoredItem;
 use crate::api::command_tree::CommandDispatcher;
-use crate::api::extension::{Extension, Results};
+use crate::api::extension::{Plugin, Results};
 use crate::api::types::PluginResult;
 use crate::commands::Error;
 use crate::core::action_runner::ActionRunner;
@@ -21,7 +21,7 @@ use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 use tauri::AppHandle;
 
 pub struct Core {
-    extension_lt: Vec<Box<dyn Extension>>,
+    extension_lt: Vec<Box<dyn Plugin>>,
     command_dispatcher: CommandDispatcher,
     shortcut_dispatcher: ShortcutsDispatcher<AppHandle, PluginResult>,
     action_runner: ActionRunner,
@@ -29,15 +29,11 @@ pub struct Core {
 }
 
 
-static CORE: AtomicPtr<Core> = AtomicPtr::new(null_mut());
-static REF_COUNT: AtomicUsize = AtomicUsize::new(0);
 pub static CORE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 impl Core {
-    pub fn new()  {
-        if !CORE.load(Ordering::SeqCst).is_null() {
-            return;
-        }
+    pub fn new() -> Self {
+
         let mut config_helper = ConfigHelper::default();
         let _ = &config_helper.load();
         let command_dispatcher =
@@ -51,39 +47,34 @@ impl Core {
             shortcut_dispatcher,
         };
         core.init();
-        let c;
-        unsafe {
-             c =  Box::leak(Box::new(core));
-
-        }
-        CORE.store(c as *mut Core,Ordering::Release);
+        core
 
     }
 
-    pub fn  get_instance() -> &'static Core {
-       if let Some(c) =  unsafe { CORE.load(Ordering::SeqCst).as_ref() }{
-           REF_COUNT.fetch_add(1, Ordering::Relaxed);
-           c
-       }else {
-           panic!("Core instance not initialized")
-       }
+    // pub fn  get_instance() -> &'static Core {
+    //    if let Some(c) =  unsafe { CORE.load(Ordering::SeqCst).as_ref() }{
+    //        REF_COUNT.fetch_add(1, Ordering::Relaxed);
+    //        c
+    //    }else {
+    //        panic!("Core instance not initialized")
+    //    }
+    //
+    // }
 
-    }
+    // pub fn sub_ref() {
+    //     REF_COUNT.fetch_sub(1,Ordering::Release);
+    // }
 
-    pub fn sub_ref() {
-        REF_COUNT.fetch_sub(1,Ordering::Release);
-    }
-
-    pub fn free(){
-        if  dbg!(REF_COUNT.load(Ordering::Relaxed)) > 0{
-            panic!("Core instance has refence")
-        }
-
-        unsafe {
-            let _ = Box::from_raw(CORE.swap(null_mut(), Ordering::SeqCst));
-        }
-        REF_COUNT.store(0, Ordering::SeqCst);
-    }
+    // pub fn free(){
+    //     if  dbg!(REF_COUNT.load(Ordering::Relaxed)) > 0{
+    //         panic!("Core instance has refence")
+    //     }
+    //
+    //     unsafe {
+    //         let _ = Box::from_raw(CORE.swap(null_mut(), Ordering::SeqCst));
+    //     }
+    //     REF_COUNT.store(0, Ordering::SeqCst);
+    // }
 
     pub fn init(&mut self) {
         // init core
@@ -102,6 +93,10 @@ impl Core {
             i.on_plugin_load(self);
         }
         self.extension_lt = extensions;
+    }
+    /// Don't use core after shutdown
+    pub fn shutdown(&self) {
+        self.config_helper.save().unwrap();
     }
 
     pub async fn handle_query(&self, text: &str, app: AppHandle) -> Result<Results, Error> {
@@ -149,19 +144,19 @@ impl Core {
         &mut self.action_runner
     }
 
-    pub fn add_extension(mut self, ext: Box<dyn Extension>) -> Self {
+    pub fn add_extension(mut self, ext: Box<dyn Plugin>) -> Self {
         self.extension_lt.push(ext);
         self
     }
 
-    pub fn get_config<T>(&self,plugin: impl Extension,namespace:&str,default:T)->T
+    pub fn get_config<T>(&self, plugin: impl Plugin, namespace:&str, default:T) ->T
     where T: DeserializeOwned + Serialize
     {
         let  namespace = plugin.get_meta_data().id + "." + namespace;
         self.config_helper.get_value(&*namespace, default)
     }
 
-    pub fn get_config_value<T>(&mut self, plugin: impl Extension, namespace:&str, value:T) ->Result<() ,Box<dyn std::error::Error + '_>>
+    pub fn get_config_value<T>(&mut self, plugin: impl Plugin, namespace:&str, value:T) ->Result<() ,Box<dyn std::error::Error + '_>>
 
     where T: DeserializeOwned + Serialize
     {

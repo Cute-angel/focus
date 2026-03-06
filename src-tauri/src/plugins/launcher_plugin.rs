@@ -1,5 +1,5 @@
 use crate::api::command_tree::{Callback, CommandContext, CommandNode, StringArgument};
-use crate::api::extension::{action, Extension, ExtensionResult, MetaData, Results};
+use crate::api::extension::{action, Plugin, ExtensionResult, MetaData, Results};
 use crate::api::types::PluginResult;
 use crate::core::action_runner::Action;
 use crate::core::{Core, ScoredItem};
@@ -302,7 +302,7 @@ impl LauncherPlugin {
     }
 }
 
-impl Extension for LauncherPlugin {
+impl Plugin for LauncherPlugin {
     fn get_meta_data(&self) -> MetaData {
         MetaData::default_builder("AppLauncher")
             .set_version("1.0.0")

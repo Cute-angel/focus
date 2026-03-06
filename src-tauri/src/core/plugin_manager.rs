@@ -1,4 +1,4 @@
-use crate::api::extension::Extension;
+use crate::api::extension::Plugin;
 use crate::plugins::AppPlugin;
 use crate::plugins::CalculatorPlugin;
 use crate::plugins::DemoPlugin;
@@ -8,8 +8,8 @@ use crate::plugins::LauncherPlugin;
 pub struct PluginManager {}
 
 impl PluginManager {
-    pub fn get_builtin_plugins() -> Vec<Box<dyn Extension>> {
-        let mut plugins: Vec<Box<dyn Extension>> = Vec::new();
+    pub fn get_builtin_plugins() -> Vec<Box<dyn Plugin>> {
+        let mut plugins: Vec<Box<dyn Plugin>> = Vec::new();
         plugins.push(Box::new(FilePlugin::default()));
         plugins.push(Box::new(AppPlugin::default()));
         plugins.push(Box::new(DemoPlugin::default()));
