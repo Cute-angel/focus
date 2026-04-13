@@ -321,15 +321,15 @@ impl Plugin for CalculatorPlugin {
             app.clipboard().write_text(res.to_string()).unwrap();
         };
 
-        core.get_action_runner()
+         core.get_action_runner()
             .add("cal_expression", Box::new(action));
 
-        core.get_shortcut_dispatcher()
+        let _ =core.get_shortcut_dispatcher()
             .register_exact('=', async |ctx, _| {
                 let input = ctx.rest_after_prefix;
                 return vec![CalculatorPlugin::run(input)];
             })
-            .expect(dbg!("Calculator shortcut register failed"));
+            .map_err(|e| {dbg!(e)});
         core.get_shortcut_dispatcher()
             .register_any(1000, async |ctx, _| {
                 let score_item = if let PluginResult::ExtensionResult(i) =
