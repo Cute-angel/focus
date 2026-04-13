@@ -12,7 +12,7 @@
                 </li>
             </ul>
         </div>
-
+<!--        <TipsBar :value="test"/>-->
 
     </div>
 </template>

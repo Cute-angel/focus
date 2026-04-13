@@ -3,6 +3,7 @@ mod cal_plugin;
 mod demo_plugin;
 mod file_plugin;
 mod launcher_plugin;
+mod browser_plugin;
 
 pub use app_plugin::*;
 pub use cal_plugin::*;
