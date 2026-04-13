@@ -35,10 +35,10 @@ lnk_parser = "0.4.2"
 toml = "0.8"
 walkdir = "2.5.0"
 pinyin = "0.10.0"
+global-hotkey = { version = "0.7.0",features = ["serde"] }
 
 [dev-dependencies]
 tempfile = "3"
-tracing = "0.1"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2"

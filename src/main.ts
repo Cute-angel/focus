@@ -6,6 +6,10 @@ import { useTheme } from './composables/useTheme';
 
 const routes = [
   {
+    path: "/startup",
+    component: () => import("./pages/StartupPage.vue"),
+  },
+  {
     path: "/settings",
     component: () => import("./pages/SettingPage.vue"),
   },

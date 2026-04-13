@@ -1,5 +1,6 @@
 import { useCloseWebviewWindow, useCreateWebviewWindows } from "./window";
 import { openSpotlight } from "./spotlight";
+import { getStartupStatus, saveGlobalHotkey } from "./startup";
 import { invoke } from "@tauri-apps/api/core";
 
 const useRunAction = (action_id: String, val: String) => {
@@ -12,4 +13,6 @@ export {
   useCreateWebviewWindows,
   openSpotlight,
   useRunAction,
+  getStartupStatus,
+  saveGlobalHotkey,
 };

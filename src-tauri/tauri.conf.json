@@ -23,7 +23,24 @@
         },
         "decorations": false,
         "resizable": false,
-        "center": true
+        "center": true,
+        "visible":false
+      },
+      {
+        "label": "startup",
+        "title": "Focus Setup",
+        "url": "/startup",
+        "width": 800,
+        "height": 600,
+        "transparent": true,
+        "windowEffects": {
+          "effects": ["acrylic"],
+          "color": [255, 255, 255, 64]
+        },
+        "decorations": false,
+        "resizable": true,
+        "center": true,
+        "visible": false
       }
     ],
     "security": {

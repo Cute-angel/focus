@@ -1299,6 +1299,7 @@ dependencies = [
  "base64 0.22.1",
  "everything-sdk",
  "futures",
+ "global-hotkey",
  "image",
  "lnk_parser",
  "pinyin",
@@ -1314,7 +1315,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.17",
  "toml 0.8.2",
- "tracing",
  "walkdir",
  "windows 0.62.2",
 ]

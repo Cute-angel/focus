@@ -25,7 +25,13 @@ pub struct ConfigHelper {
 impl Default for ConfigHelper {
     fn default() -> Self {
         let base_dir = APP_HANDLE.wait().path().app_config_dir().unwrap();
-        let path = base_dir.join(CONFIG_FILE);
+        ConfigHelper::new(base_dir)
+    }
+}
+
+impl ConfigHelper {
+    pub fn new(path: PathBuf) -> Self {
+        let path = path.join(CONFIG_FILE);
         let mut instance = Self {
             path,
             configs: Arc::new(Mutex::new(HashMap::new())),
@@ -38,9 +44,7 @@ impl Default for ConfigHelper {
         instance.start_auto_save_worker();
         instance
     }
-}
-
-impl ConfigHelper {
+    
     /// 设置自动保存间隔（后台定时保存）
     pub fn set_auto_save_interval(&mut self, interval: Duration) {
         self.auto_save_interval = interval;
@@ -251,6 +255,14 @@ impl ConfigHelper {
         let map = configs.lock().unwrap();
 
         for (key, value) in map.iter() {
+            if key.is_empty() {
+                if let toml::Value::Table(root_table) = value.clone() {
+                    for (k, v) in root_table {
+                        toml_map.insert(k, v);
+                    }
+                }
+                continue;
+            }
             let parts: Vec<&str> = key.split('.').collect();
             Self::insert_nested(&mut toml_map, &parts, value.clone());
         }

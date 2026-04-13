@@ -1,9 +1,8 @@
 pub mod action_runner;
-mod config_helper;
+pub(crate) mod config_helper;
 mod plugin_manager;
 mod plugin_worker;
 mod shortcut;
-
 pub use crate::core::shortcut::ScoredItem;
 use crate::api::command_tree::CommandDispatcher;
 use crate::api::extension::{Plugin, Results};
@@ -13,12 +12,12 @@ use crate::core::action_runner::ActionRunner;
 use crate::core::config_helper::ConfigHelper;
 use crate::core::plugin_manager::PluginManager;
 use crate::core::shortcut::ShortcutsDispatcher;
+use global_hotkey::hotkey::HotKey;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::mem::take;
-use std::ptr::null_mut;
-use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
+use tauri_plugin_global_shortcut::{Code, Modifiers};
 
 pub struct Core {
     extension_lt: Vec<Box<dyn Plugin>>,
@@ -26,6 +25,7 @@ pub struct Core {
     shortcut_dispatcher: ShortcutsDispatcher<AppHandle, PluginResult>,
     action_runner: ActionRunner,
     config_helper: ConfigHelper,
+    //config:CoreConfig
 }
 
 
@@ -88,7 +88,7 @@ impl Core {
             self.config_helper.set_value("", CoreConfig::default()).expect("TODO: panic message");
         }
         // init plugins
-        let extensions = std::mem::take(&mut self.extension_lt);
+        let extensions = take(&mut self.extension_lt);
         for i in &extensions {
             i.on_plugin_load(self);
         }
@@ -156,12 +156,28 @@ impl Core {
         self.config_helper.get_value(&*namespace, default)
     }
 
-    pub fn get_config_value<T>(&mut self, plugin: impl Plugin, namespace:&str, value:T) ->Result<() ,Box<dyn std::error::Error + '_>>
+    pub fn set_config_value<T>(&mut self, plugin: impl Plugin, namespace:&str, value:T) ->Result<() ,Box<dyn std::error::Error + '_>>
 
     where T: DeserializeOwned + Serialize
     {
         let namespace = plugin.get_meta_data().id + "." + namespace;
          Ok( self.config_helper.set_value(&*namespace, value)?)
+    }
+
+    pub fn get_global_hotkey_store(&self) -> HotKey {
+        self.config_helper.get_value("hotkey", CoreConfig::default().hotkey)
+    }
+
+    pub fn set_global_hotkey(&mut self, hotkey: HotKey) {
+        let _ = self.config_helper.set_value("hotkey", hotkey);
+    }
+
+    pub fn is_startup(&self) -> bool {
+        self.config_helper.get_value("startup", false)
+    }
+
+    pub fn flag_started(&mut self) {
+        let _ =self.config_helper.set_value("startup", true);
     }
 }
 
@@ -172,9 +188,12 @@ impl Drop for Core {
 }
 #[derive(Serialize, Deserialize)]
 struct CoreConfig {
-    command_prefix: String,
-    init: bool,
-    version: String,
+    pub command_prefix: String,
+    pub init: bool,
+    pub version: String,
+    pub onboarding_completed: bool,
+    pub hotkey:HotKey,
+    pub startup:bool,
 }
 
 impl Default for CoreConfig {
@@ -183,6 +202,9 @@ impl Default for CoreConfig {
             command_prefix: "/".to_string(),
             init: true,
             version: CORE_VERSION.to_string(),
+            onboarding_completed: false,
+            hotkey: HotKey::new(Some(Modifiers::CONTROL),Code::KeyN),
+            startup:false,
         }
     }
 }
